@@ -75,7 +75,7 @@ type ConsumeArgs struct {
 }
 
 func (a *ConsumeArgs) Id() string                          { return a.id }
-func (a *ConsumeArgs) Message() []byte                     { return a.message }
+func (a *ConsumeArgs) RawMessage() []byte                  { return a.message }
 func (a *ConsumeArgs) Ack() error                          { return a.ack() }
 func (a *ConsumeArgs) Nack() error                         { return a.nack() }
 func (a *ConsumeArgs) Reject() error                       { return a.reject() }

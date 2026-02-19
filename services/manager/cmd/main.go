@@ -6,7 +6,6 @@ import (
 	queue "deposit-collector/internal/queue"
 	config "deposit-collector/services/manager/config"
 	logger "deposit-collector/shared/logger"
-	rabbitmq "deposit-collector/shared/rabbitmq"
 	utils "deposit-collector/shared/utils"
 )
 
@@ -15,29 +14,20 @@ func main() {
 	defer cancel()
 	logger := logger.NewLogger()
 	managerConfig := config.GetManagerConfig(logger)
-	rmq, err := queue.GetQueueConnection(managerConfig.RabbitMQURL)
-	if err != nil {
-		utils.FailOnError(logger, err, "Error creating RabbitMQ connection")
-	}
+	rmq := queue.GetQueueConnection(managerConfig.RabbitMQURL, logger)
 	defer rmq.Close()
 	rmq.SetQos(1, 0, false)
-	operationsQueue, err := rabbitmq.GetQueue(
-		rmq, string(queue.OperationsQueue), logger,
-	)
-	if err != nil {
-		utils.FailOnError(logger, err, "Error creating operations queue")
-	}
-
+	operationsQueue := queue.NewOperationsQueue(rmq, logger)
 	logger.Info("Waiting for messages from operations queue")
 	forever := make(chan struct{})
 	defer close(forever)
-	err = operationsQueue.Consume(ctx, func(args *rabbitmq.ConsumeArgs) {
+	err := operationsQueue.Consume(ctx, func(args *queue.OperationConsumerArgs) {
 		if ctx.Err() != nil {
 			logger.Error("Context cancelled, stopping consume")
 			_ = args.Nack()
 			return
 		}
-		logger.Info(args.Message())
+		logger.Info(args.Message().OperationData.Message)
 		_ = args.Ack()
 	})
 	if err != nil {

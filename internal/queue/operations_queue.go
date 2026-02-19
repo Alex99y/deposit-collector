@@ -4,15 +4,17 @@ import (
 	context "context"
 	json "encoding/json"
 
+	logger "deposit-collector/shared/logger"
 	rabbitmq "deposit-collector/shared/rabbitmq"
+	utils "deposit-collector/shared/utils"
 )
 
 type QueueName string
 type OperationType string
 
 const (
-	OperationTypeCreateUser      OperationType = "create-user"
-	OperationTypeGenerateAddress OperationType = "generate-address"
+	OperationTypeWithdraw OperationType = "withdraw-operation"
+	OperationTypeDeposit  OperationType = "deposit-operation"
 )
 
 const (
@@ -20,7 +22,7 @@ const (
 )
 
 type Operation struct {
-	message string
+	Message string
 }
 
 type OperationEvent struct {
@@ -28,14 +30,59 @@ type OperationEvent struct {
 	OperationData Operation
 }
 
-func PublishOperationEvent(
+type OperationConsumerArgs struct {
+	rabbitmq.ConsumeArgs
+}
+
+func (a *OperationConsumerArgs) Message() OperationEvent {
+	rawMessage := a.RawMessage()
+	var operationEvent OperationEvent
+	err := json.Unmarshal(rawMessage, &operationEvent)
+	if err != nil {
+		return OperationEvent{}
+	}
+	return operationEvent
+}
+
+type OperationQueue struct {
+	queue  *rabbitmq.Queue
+	logger *logger.Logger
+}
+
+func (q *OperationQueue) PublishOperationEvent(
 	ctx context.Context,
-	queue *rabbitmq.Queue,
 	event OperationEvent,
 ) error {
 	message, err := json.Marshal(event)
 	if err != nil {
 		return err
 	}
-	return queue.Publish(ctx, message)
+	return q.queue.Publish(ctx, message)
+}
+
+type ConsumeCallback func(*OperationConsumerArgs)
+
+func (q *OperationQueue) Consume(
+	ctx context.Context,
+	callback ConsumeCallback,
+) error {
+	return q.queue.Consume(ctx, func(args *rabbitmq.ConsumeArgs) {
+		operationConsumerArgs := &OperationConsumerArgs{
+			ConsumeArgs: *args,
+		}
+		callback(operationConsumerArgs)
+	})
+}
+
+func NewOperationsQueue(
+	rmq *rabbitmq.RabbitMQ,
+	logger *logger.Logger,
+) *OperationQueue {
+	operationsQueue, err := rabbitmq.GetQueue(
+		rmq, string(OperationsQueue), logger,
+	)
+	if err != nil {
+		utils.FailOnError(logger, err, "Error creating operations queue")
+	}
+	return &OperationQueue{queue: operationsQueue, logger: logger}
 }

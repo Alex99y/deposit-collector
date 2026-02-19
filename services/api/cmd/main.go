@@ -7,7 +7,6 @@ import (
 	queue "deposit-collector/internal/queue"
 	config "deposit-collector/services/api/config"
 	logger "deposit-collector/shared/logger"
-	rabbitmq "deposit-collector/shared/rabbitmq"
 	utils "deposit-collector/shared/utils"
 )
 
@@ -16,18 +15,15 @@ func main() {
 	defer cancel()
 	logger := logger.NewLogger()
 	apiConfig := config.GetAPIConfig(logger)
-	rmq, err := queue.GetQueueConnection(apiConfig.RabbitMQURL)
-	if err != nil {
-		utils.FailOnError(logger, err, "Error creating RabbitMQ connection")
-	}
+	rmq := queue.GetQueueConnection(apiConfig.RabbitMQURL, logger)
 	defer rmq.Close()
-	operationsQueue, err := rabbitmq.GetQueue(
-		rmq, string(queue.OperationsQueue), logger,
-	)
-	if err != nil {
-		utils.FailOnError(logger, err, "Error creating operations queue")
-	}
-	err = operationsQueue.Publish(ctx, "Hello World")
+	operationsQueue := queue.NewOperationsQueue(rmq, logger)
+	err := operationsQueue.PublishOperationEvent(ctx, queue.OperationEvent{
+		OperationType: queue.OperationTypeDeposit,
+		OperationData: queue.Operation{
+			Message: "Hello World Amigo!",
+		},
+	})
 	if err != nil {
 		utils.FailOnError(logger, err, "Error publishing to operations queue")
 	}
