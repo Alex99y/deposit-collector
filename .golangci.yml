@@ -1,0 +1,31 @@
+run:
+  timeout: 5m
+  modules-download-mode: readonly
+
+linters:
+  enable:
+    - errcheck
+    - gosimple
+    - govet
+    - ineffassign
+    - lll
+    - staticcheck
+    - typecheck
+    - unused
+    - gofmt
+    - goimports
+
+linters-settings:
+  gofmt:
+    simplify: true
+  goimports:
+    local-prefixes: deposit-collector
+  lll:
+    line-length: 80
+    tab-width: 1
+
+issues:
+  exclude-rules:
+    - path: _test\.go
+      linters:
+        - errcheck
