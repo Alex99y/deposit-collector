@@ -2,7 +2,7 @@ package logger
 
 import (
 	slog "log/slog"
-	"os"
+	os "os"
 )
 
 type Logger struct {

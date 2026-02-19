@@ -2,30 +2,50 @@ package main
 
 import (
 	context "context"
-	"fmt"
+	fmt "fmt"
+	os "os"
+	signal "os/signal"
+	syscall "syscall"
+	time "time"
 
-	queue "deposit-collector/internal/queue"
 	config "deposit-collector/services/api/config"
+	http "deposit-collector/services/api/http"
 	logger "deposit-collector/shared/logger"
 	utils "deposit-collector/shared/utils"
 )
 
 func main() {
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
 	logger := logger.NewLogger()
+
 	apiConfig := config.GetAPIConfig(logger)
-	rmq := queue.GetQueueConnection(apiConfig.RabbitMQURL, logger)
-	defer rmq.Close()
-	operationsQueue := queue.NewOperationsQueue(rmq, logger)
-	err := operationsQueue.PublishOperationEvent(ctx, queue.OperationEvent{
-		OperationType: queue.OperationTypeDeposit,
-		OperationData: queue.Operation{
-			Message: "Hello World Amigo!",
-		},
-	})
+
+	server := http.NewServer(logger, apiConfig.Port, apiConfig.Host)
+
+	go func() {
+		logger.Info(
+			fmt.Sprintf("starting server on %s:%d", apiConfig.Host, apiConfig.Port),
+		)
+		err := server.Start(apiConfig.Port, apiConfig.Host)
+		if err != nil {
+			utils.FailOnError(logger, err, "error starting server")
+		}
+	}()
+
+	quit := make(chan os.Signal, 1)
+	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
+
+	<-quit
+	logger.Info("shutdown server ...")
+
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+
+	err := server.Shutdown(ctx)
 	if err != nil {
-		utils.FailOnError(logger, err, "Error publishing to operations queue")
+		utils.FailOnError(logger, err, "error shutting down server")
 	}
-	fmt.Println("Message published to operations queue")
+
+	<-ctx.Done()
+
+	logger.Info("server exiting")
 }
