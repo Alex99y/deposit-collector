@@ -5,16 +5,17 @@ import (
 	"os"
 	"strconv"
 
-	logger "deposit-collector/shared/logger"
+	logger "deposit-collector/pkg/logger"
 
 	godotenv "github.com/joho/godotenv"
 
-	utils "deposit-collector/shared/utils"
+	utils "deposit-collector/pkg/utils"
 )
 
 type CommonConfig struct {
 	RabbitMQURL string
 	MetricsPort int
+	PostgresURL string
 }
 
 func loadEnvFile(logger *logger.Logger) {
@@ -56,5 +57,6 @@ func GetCommonConfig(logger *logger.Logger) *CommonConfig {
 	return &CommonConfig{
 		RabbitMQURL: GetEnvOrThrow(logger, RabbitMQURL),
 		MetricsPort: metricsPort,
+		PostgresURL: GetEnvOrThrow(logger, PostgresURL),
 	}
 }

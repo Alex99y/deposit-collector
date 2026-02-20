@@ -1,7 +1,7 @@
 package http
 
 import (
-	"deposit-collector/services/api/http/handlers"
+	"deposit-collector/cmd/api/http/handlers"
 
 	fiber "github.com/gofiber/fiber/v3"
 )

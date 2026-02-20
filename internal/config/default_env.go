@@ -1,4 +1,5 @@
 package config
 
-const RabbitMQURL = "RABBITMQ_URI"
+const RabbitMQURL = "RABBITMQ_URL"
 const MetricsPort = "METRICS_PORT"
+const PostgresURL = "POSTGRESQL_URL"

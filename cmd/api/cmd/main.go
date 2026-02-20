@@ -8,10 +8,10 @@ import (
 	syscall "syscall"
 	time "time"
 
-	config "deposit-collector/services/api/config"
-	http "deposit-collector/services/api/http"
-	logger "deposit-collector/shared/logger"
-	utils "deposit-collector/shared/utils"
+	config "deposit-collector/cmd/api/config"
+	http "deposit-collector/cmd/api/http"
+	logger "deposit-collector/pkg/logger"
+	utils "deposit-collector/pkg/utils"
 )
 
 func main() {
@@ -46,6 +46,19 @@ func main() {
 	}
 
 	<-ctx.Done()
+
+	// rmq := queue.GetQueueConnection(apiConfig.RabbitMQURL, logger)
+	// defer rmq.Close()
+	// operationsQueue := queue.NewOperationsQueue(rmq, logger)
+	// err := operationsQueue.PublishOperationEvent(ctx, queue.OperationEvent{
+	// 	OperationType: queue.OperationTypeDeposit,
+	// 	OperationData: queue.Operation{
+	// 		Message: "Hello World Amigo!",
+	// 	},
+	// })
+	// if err != nil {
+	// 	utils.FailOnError(logger, err, "Error publishing to operations queue")
+	// }
 
 	logger.Info("server exiting")
 }

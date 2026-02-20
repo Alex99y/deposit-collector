@@ -6,8 +6,8 @@ import (
 
 	fiber "github.com/gofiber/fiber/v3"
 
-	middlewares "deposit-collector/services/api/http/middlewares"
-	logger "deposit-collector/shared/logger"
+	middlewares "deposit-collector/cmd/api/http/middlewares"
+	logger "deposit-collector/pkg/logger"
 )
 
 type Server struct {

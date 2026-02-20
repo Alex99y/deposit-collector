@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"os"
 
-	logger "deposit-collector/shared/logger"
+	logger "deposit-collector/pkg/logger"
 )
 
 func FailOnError(logger *logger.Logger, err error, msg string) {

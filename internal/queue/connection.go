@@ -1,9 +1,9 @@
 package queue
 
 import (
-	logger "deposit-collector/shared/logger"
-	rabbitmq "deposit-collector/shared/rabbitmq"
-	utils "deposit-collector/shared/utils"
+	logger "deposit-collector/pkg/logger"
+	rabbitmq "deposit-collector/pkg/rabbitmq"
+	utils "deposit-collector/pkg/utils"
 )
 
 func GetQueueConnection(url string, logger *logger.Logger) *rabbitmq.RabbitMQ {

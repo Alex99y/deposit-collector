@@ -5,8 +5,8 @@ import (
 	"strconv"
 
 	config "deposit-collector/internal/config"
-	logger "deposit-collector/shared/logger"
-	utils "deposit-collector/shared/utils"
+	logger "deposit-collector/pkg/logger"
+	utils "deposit-collector/pkg/utils"
 )
 
 type APIConfig struct {

@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"time"
 
-	logger "deposit-collector/shared/logger"
+	logger "deposit-collector/pkg/logger"
 
 	fiber "github.com/gofiber/fiber/v3"
 )

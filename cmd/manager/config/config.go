@@ -2,7 +2,7 @@ package config
 
 import (
 	config "deposit-collector/internal/config"
-	logger "deposit-collector/shared/logger"
+	logger "deposit-collector/pkg/logger"
 )
 
 type ManagerConfig struct {

@@ -3,10 +3,10 @@ package main
 import (
 	context "context"
 
+	config "deposit-collector/cmd/manager/config"
 	queue "deposit-collector/internal/queue"
-	config "deposit-collector/services/manager/config"
-	logger "deposit-collector/shared/logger"
-	utils "deposit-collector/shared/utils"
+	logger "deposit-collector/pkg/logger"
+	utils "deposit-collector/pkg/utils"
 )
 
 func main() {

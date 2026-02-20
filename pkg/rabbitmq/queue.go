@@ -5,7 +5,7 @@ import (
 	"fmt"
 	time "time"
 
-	logger "deposit-collector/shared/logger"
+	logger "deposit-collector/pkg/logger"
 
 	amqp "github.com/rabbitmq/amqp091-go"
 )
