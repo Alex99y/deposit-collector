@@ -1,35 +1,70 @@
 package handlers
 
 import (
-	"net/http"
+	json "encoding/json"
+
+	utils "deposit-collector/cmd/api/http/utils"
+	controllers "deposit-collector/internal/http/controllers"
+	logger "deposit-collector/pkg/logger"
+
+	fiber "github.com/gofiber/fiber/v3"
 )
 
-func GetUser(w http.ResponseWriter, r *http.Request) {
-	w.WriteHeader(http.StatusOK)
-	_, _ = w.Write([]byte("ok"))
+type UserHandler struct {
+	userController *controllers.UserHandler
+	logger         *logger.Logger
 }
 
-func CreateUser(w http.ResponseWriter, r *http.Request) {
-	w.WriteHeader(http.StatusOK)
-	_, _ = w.Write([]byte("ok"))
+func (h *UserHandler) GetUser(c fiber.Ctx) {
+	c.Status(fiber.StatusOK)
+	_, _ = c.Write([]byte("ok"))
 }
 
-func GenerateAddress(w http.ResponseWriter, r *http.Request) {
-	w.WriteHeader(http.StatusOK)
-	_, _ = w.Write([]byte("ok"))
+type CreateUserRequest struct {
+	ExternalID string `json:"external_id" validate:"required"`
 }
 
-func ManualDeposit(w http.ResponseWriter, r *http.Request) {
-	w.WriteHeader(http.StatusOK)
-	_, _ = w.Write([]byte("ok"))
+func (h *UserHandler) CreateUser(c fiber.Ctx) {
+	user := new(CreateUserRequest)
+	if err := c.Bind().Body(user); err != nil {
+		utils.NewErrorResponse(
+			c, fiber.StatusBadRequest, "invalid request body",
+		)
+		return
+	}
+
+	if user.ExternalID == "" {
+		utils.NewErrorResponse(
+			c, fiber.StatusBadRequest, "external_id is required",
+		)
+		return
+	}
+
+	h.userController.CreateUser(user.ExternalID)
+
+	c.Status(fiber.StatusOK)
+	jsonData, _ := json.Marshal(user)
+	_, _ = c.Write(jsonData)
 }
 
-func GetUserOperations(w http.ResponseWriter, r *http.Request) {
-	w.WriteHeader(http.StatusOK)
-	_, _ = w.Write([]byte("ok"))
+func (h *UserHandler) GenerateAddress(c fiber.Ctx) {
+	c.Status(fiber.StatusOK)
+	_, _ = c.Write([]byte("ok"))
 }
 
-// func GetUserAddresses(w http.ResponseWriter, r *http.Request) {
-// 	w.WriteHeader(http.StatusOK)
-// 	_, _ = w.Write([]byte("ok"))
-// }
+func (h *UserHandler) ManualDeposit(c fiber.Ctx) {
+	c.Status(fiber.StatusOK)
+	_, _ = c.Write([]byte("ok"))
+}
+
+func (h *UserHandler) GetUserOperations(c fiber.Ctx) {
+	c.Status(fiber.StatusOK)
+	_, _ = c.Write([]byte("ok"))
+}
+
+func NewUserHandler(logger *logger.Logger) *UserHandler {
+	return &UserHandler{
+		userController: controllers.NewUserHandler(logger),
+		logger:         logger,
+	}
+}

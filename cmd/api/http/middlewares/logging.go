@@ -7,6 +7,7 @@ import (
 	logger "deposit-collector/pkg/logger"
 
 	fiber "github.com/gofiber/fiber/v3"
+	requestid "github.com/gofiber/fiber/v3/middleware/requestid"
 )
 
 func AccessLog(logger *logger.Logger) fiber.Handler {
@@ -27,12 +28,13 @@ func AccessLog(logger *logger.Logger) fiber.Handler {
 		}
 
 		logger.Info(
-			fmt.Sprintf("http_request [%d %s %s] %dms %s",
+			fmt.Sprintf("http_request [%d %s %s] %dms %s id: %s",
 				status,
 				c.Method(),
 				c.Path(),
 				lat.Milliseconds(),
 				c.IP(),
+				requestid.FromContext(c),
 			))
 
 		return err
