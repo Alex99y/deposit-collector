@@ -8,10 +8,9 @@ CREATE TYPE operation_type AS ENUM ('deposit', 'withdraw');
 
 CREATE TABLE supported_chains (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    network VARCHAR(100) NOT NULL,
+    network VARCHAR(100) UNIQUE NOT NULL,
     chain_platform chain_platform NOT NULL,
-    bip44_id INTEGER NOT NULL,
-    UNIQUE (network, chain_platform)
+    bip44_id INTEGER UNIQUE NOT NULL
 );
 
 
@@ -25,11 +24,14 @@ CREATE TABLE users (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     -- Account ID is the index of the derivation path
     -- Example: m/44'/60'/{account_id}'/0/0 for Ethereum
-    account_id SERIAL UNIQUE,
+    account_id INTEGER UNIQUE NOT NULL,
     -- External ID is the ID of the user in the external system
     external_id VARCHAR(255) NOT NULL UNIQUE,
     created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT users_account_id_uk UNIQUE (account_id),
+    CONSTRAINT users_external_id_uk UNIQUE (external_id)
 );
 
 CREATE INDEX idx_users_external_id ON users (external_id);
@@ -43,6 +45,7 @@ CREATE TABLE token_addresses (
     unit_name VARCHAR(25) NOT NULL,
     unit_symbol VARCHAR(10) NOT NULL,
     address VARCHAR(100) NOT NULL,
+    -- ChainId references the supported_chains table because not all tokens are supported on all chains.
     chain_id UUID NOT NULL REFERENCES supported_chains(id),
     decimals INTEGER NOT NULL,
     UNIQUE (address, chain_id)
