@@ -11,6 +11,7 @@ import (
 	config "deposit-collector/cmd/api/config"
 	http "deposit-collector/cmd/api/http"
 	handlers "deposit-collector/cmd/api/http/handlers"
+	system "deposit-collector/internal/system"
 	users "deposit-collector/internal/users"
 	logger "deposit-collector/pkg/logger"
 	postgresql "deposit-collector/pkg/postgresql"
@@ -34,10 +35,16 @@ func main() {
 	usersService := users.NewUserService(usersRepository, logger)
 	usersHandler := handlers.NewUserHandler(usersService, logger)
 
+	// Setup system services
+	systemRepository := system.NewSystemRepository(db)
+	systemService := system.NewSystemService(systemRepository, logger)
+	systemHandler := handlers.NewSystemHandler(systemService, logger)
+
 	// Setup server dependencies
 	serverDependencies := http.ServerDependencies{
-		Logger:       logger,
-		UsersHandler: usersHandler,
+		Logger:        logger,
+		UsersHandler:  usersHandler,
+		SystemHandler: systemHandler,
 	}
 
 	server := http.NewServer(serverDependencies)

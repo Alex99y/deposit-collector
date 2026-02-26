@@ -1,6 +1,10 @@
 package system
 
-import "github.com/google/uuid"
+import (
+	errors "errors"
+
+	"github.com/google/uuid"
+)
 
 type ChainPlatform string
 
@@ -9,6 +13,19 @@ const (
 	ChainPlatformBTC ChainPlatform = "BTC"
 	ChainPlatformSOL ChainPlatform = "SOL"
 )
+
+func ValidateChainPlatform(chainPlatform string) error {
+	switch chainPlatform {
+	case string(ChainPlatformEVM):
+		return nil
+	case string(ChainPlatformBTC):
+		return nil
+	case string(ChainPlatformSOL):
+		return nil
+	default:
+		return errors.New("invalid chain platform")
+	}
+}
 
 type NewSupportedChainRequest struct {
 	Network       string
@@ -23,14 +40,14 @@ type SupportedChain struct {
 
 /*
 *
-Chain is the network of the chain.
+Network is the network of the chain.
 Example: Ethereum
 */
 type NewTokenAddressRequest struct {
 	UnitName   string
 	UnitSymbol string
 	Address    string
-	Chain      string
+	Network    string
 	Decimals   int
 }
 

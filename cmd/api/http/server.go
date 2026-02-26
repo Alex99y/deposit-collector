@@ -12,6 +12,7 @@ import (
 
 	handlers "deposit-collector/cmd/api/http/handlers"
 	middlewares "deposit-collector/cmd/api/http/middlewares"
+	validations "deposit-collector/cmd/api/http/validations"
 	logger "deposit-collector/pkg/logger"
 )
 
@@ -28,12 +29,15 @@ func (s *Server) Start(port int, host string) error {
 }
 
 type ServerDependencies struct {
-	Logger       *logger.Logger
-	UsersHandler *handlers.UserHandler
+	Logger        *logger.Logger
+	UsersHandler  *handlers.UserHandler
+	SystemHandler *handlers.SystemHandler
 }
 
 func NewServer(dependencies ServerDependencies) *Server {
-	app := fiber.New()
+	app := fiber.New(fiber.Config{
+		StructValidator: validations.NewStructValidator(),
+	})
 	app.Use(middlewares.AccessLog(dependencies.Logger))
 	app.Use(requestid.New())
 	app.Use(favicon.New())
@@ -44,8 +48,9 @@ func NewServer(dependencies ServerDependencies) *Server {
 		Expiration: 1 * time.Minute,
 	}))
 	RegisterRoutes(app, RouterDependencies{
-		Logger:       dependencies.Logger,
-		UsersHandler: dependencies.UsersHandler,
+		Logger:        dependencies.Logger,
+		UsersHandler:  dependencies.UsersHandler,
+		SystemHandler: dependencies.SystemHandler,
 	})
 	return &Server{httpServer: app}
 }

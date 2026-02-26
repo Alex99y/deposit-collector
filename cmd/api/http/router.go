@@ -11,8 +11,9 @@ import (
 )
 
 type RouterDependencies struct {
-	Logger       *logger.Logger
-	UsersHandler *handlers.UserHandler
+	Logger        *logger.Logger
+	UsersHandler  *handlers.UserHandler
+	SystemHandler *handlers.SystemHandler
 }
 
 func RegisterRoutes(app *fiber.App, dependencies RouterDependencies) {
@@ -21,11 +22,35 @@ func RegisterRoutes(app *fiber.App, dependencies RouterDependencies) {
 	apiV1 := app.Group("/api/v1")
 
 	usersGroup := apiV1.Group("/users")
-	usersGroup.Use(validations.ValidateContentType(validations.ContentTypeJSON))
 	usersGroup.Get("/:id", dependencies.UsersHandler.GetUser)
-	usersGroup.Post("/", dependencies.UsersHandler.CreateUser)
-	usersGroup.Post("/:id/addresses", dependencies.UsersHandler.GenerateAddress)
-	usersGroup.Post("/:id/deposits", dependencies.UsersHandler.ManualDeposit)
+	usersGroup.Post(
+		"/",
+		validations.ValidateContentType(validations.ContentTypeJSON),
+		dependencies.UsersHandler.CreateUser,
+	)
+	usersGroup.Post(
+		"/:id/addresses",
+		validations.ValidateContentType(validations.ContentTypeJSON),
+		dependencies.UsersHandler.GenerateAddress,
+	)
+	usersGroup.Post(
+		"/:id/deposits",
+		validations.ValidateContentType(validations.ContentTypeJSON),
+		dependencies.UsersHandler.ManualDeposit,
+	)
 	usersGroup.Get("/:id/operations", dependencies.UsersHandler.GetUserOperations)
 
+	systemGroup := apiV1.Group("/system")
+	systemGroup.Get("/chains", dependencies.SystemHandler.GetSupportedChains)
+	systemGroup.Get("/tokens", dependencies.SystemHandler.GetSupportedTokens)
+	systemGroup.Post(
+		"/chains",
+		validations.ValidateContentType(validations.ContentTypeJSON),
+		dependencies.SystemHandler.AddNewSupportedChain,
+	)
+	systemGroup.Post(
+		"/tokens",
+		validations.ValidateContentType(validations.ContentTypeJSON),
+		dependencies.SystemHandler.AddNewTokenAddress,
+	)
 }

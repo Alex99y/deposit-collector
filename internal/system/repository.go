@@ -6,6 +6,8 @@ import (
 	fmt "fmt"
 	strings "strings"
 
+	postgresql "deposit-collector/pkg/postgresql"
+
 	uuid "github.com/google/uuid"
 )
 
@@ -46,12 +48,20 @@ func (r *SystemRepository) AddNewSupportedChain(
 ) error {
 	q := `
 INSERT INTO supported_chains (network, chain_platform, bip44_id)
-VALUES ($1, $2, $3) ON CONFLICT DO NOTHING
+VALUES ($1, $2, $3)
 `
 
-	_, err := r.db.Exec(q, chain.Network, chain.ChainPlatform, chain.BIP44ID)
+	_, err := r.db.Exec(
+		q,
+		strings.ToLower(chain.Network),
+		strings.ToUpper(string(chain.ChainPlatform)),
+		chain.BIP44ID,
+	)
 	if err == sql.ErrNoRows {
 		return nil
+	}
+	if _, ok := postgresql.UniqueConstraintViolation(err); ok {
+		return errors.New("network already exists")
 	}
 	if err != nil {
 		return err
@@ -68,19 +78,22 @@ INSERT INTO token_addresses (
 	unit_name, unit_symbol, address, chain_id, decimals
 ) VALUES (
 	$1, $2, $3, (SELECT id FROM supported_chains WHERE network = $4), $5
-) ON CONFLICT DO NOTHING
+)
 `
 
 	_, err := r.db.Exec(
 		q,
 		tokenAddress.UnitName,
-		tokenAddress.UnitSymbol,
-		tokenAddress.Address,
-		tokenAddress.Chain,
+		strings.ToUpper(tokenAddress.UnitSymbol),
+		strings.ToLower(tokenAddress.Address),
+		strings.ToLower(tokenAddress.Network),
 		tokenAddress.Decimals,
 	)
 	if err == sql.ErrNoRows {
 		return nil
+	}
+	if _, ok := postgresql.UniqueConstraintViolation(err); ok {
+		return errors.New("token address already exists")
 	}
 	if err != nil {
 		return err
