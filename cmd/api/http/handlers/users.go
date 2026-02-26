@@ -4,14 +4,14 @@ import (
 	json "encoding/json"
 
 	utils "deposit-collector/cmd/api/http/utils"
-	controllers "deposit-collector/internal/http/controllers"
+	users "deposit-collector/internal/users"
 	logger "deposit-collector/pkg/logger"
 
 	fiber "github.com/gofiber/fiber/v3"
 )
 
 type UserHandler struct {
-	userController *controllers.UserHandler
+	userController *users.UserHandler
 	logger         *logger.Logger
 }
 
@@ -64,7 +64,7 @@ func (h *UserHandler) GetUserOperations(c fiber.Ctx) {
 
 func NewUserHandler(logger *logger.Logger) *UserHandler {
 	return &UserHandler{
-		userController: controllers.NewUserHandler(logger),
+		userController: users.NewUserHandler(logger),
 		logger:         logger,
 	}
 }
