@@ -11,7 +11,7 @@ import (
 )
 
 type UserHandler struct {
-	userController *users.UserHandler
+	userController *users.UserService
 	logger         *logger.Logger
 }
 
@@ -21,7 +21,7 @@ func (h *UserHandler) GetUser(c fiber.Ctx) {
 }
 
 type CreateUserRequest struct {
-	ExternalID string `json:"external_id" validate:"required"`
+	ExternalID string `json:"externalId" validate:"required"`
 }
 
 func (h *UserHandler) CreateUser(c fiber.Ctx) {
@@ -35,12 +35,18 @@ func (h *UserHandler) CreateUser(c fiber.Ctx) {
 
 	if user.ExternalID == "" {
 		utils.NewErrorResponse(
-			c, fiber.StatusBadRequest, "external_id is required",
+			c, fiber.StatusBadRequest, "externalId is required",
 		)
 		return
 	}
 
-	h.userController.CreateUser(user.ExternalID)
+	err := h.userController.CreateUser(user.ExternalID)
+	if err != nil {
+		utils.NewErrorResponse(
+			c, fiber.StatusBadRequest, "error creating user",
+		)
+		return
+	}
 
 	c.Status(fiber.StatusOK)
 	jsonData, _ := json.Marshal(user)
@@ -62,9 +68,12 @@ func (h *UserHandler) GetUserOperations(c fiber.Ctx) {
 	_, _ = c.Write([]byte("ok"))
 }
 
-func NewUserHandler(logger *logger.Logger) *UserHandler {
+func NewUserHandler(
+	usersService *users.UserService,
+	logger *logger.Logger,
+) *UserHandler {
 	return &UserHandler{
-		userController: users.NewUserHandler(logger),
+		userController: usersService,
 		logger:         logger,
 	}
 }

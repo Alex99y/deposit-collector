@@ -2,6 +2,8 @@ package postgresql
 
 import (
 	"database/sql"
+
+	_ "github.com/lib/pq"
 )
 
 func SetupPostgresConnection(url string) (*sql.DB, error) {

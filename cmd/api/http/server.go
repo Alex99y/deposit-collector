@@ -10,6 +10,7 @@ import (
 	limiter "github.com/gofiber/fiber/v3/middleware/limiter"
 	requestid "github.com/gofiber/fiber/v3/middleware/requestid"
 
+	handlers "deposit-collector/cmd/api/http/handlers"
 	middlewares "deposit-collector/cmd/api/http/middlewares"
 	logger "deposit-collector/pkg/logger"
 )
@@ -26,9 +27,14 @@ func (s *Server) Start(port int, host string) error {
 	return s.httpServer.Listen(fmt.Sprintf("%s:%d", host, port))
 }
 
-func NewServer(logger *logger.Logger, port int, host string) *Server {
+type ServerDependencies struct {
+	Logger       *logger.Logger
+	UsersHandler *handlers.UserHandler
+}
+
+func NewServer(dependencies ServerDependencies) *Server {
 	app := fiber.New()
-	app.Use(middlewares.AccessLog(logger))
+	app.Use(middlewares.AccessLog(dependencies.Logger))
 	app.Use(requestid.New())
 	app.Use(favicon.New())
 
@@ -37,6 +43,9 @@ func NewServer(logger *logger.Logger, port int, host string) *Server {
 		Max:        100,
 		Expiration: 1 * time.Minute,
 	}))
-	RegisterRoutes(app, logger)
+	RegisterRoutes(app, RouterDependencies{
+		Logger:       dependencies.Logger,
+		UsersHandler: dependencies.UsersHandler,
+	})
 	return &Server{httpServer: app}
 }

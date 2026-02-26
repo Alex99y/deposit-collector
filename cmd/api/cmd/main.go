@@ -10,7 +10,10 @@ import (
 
 	config "deposit-collector/cmd/api/config"
 	http "deposit-collector/cmd/api/http"
+	handlers "deposit-collector/cmd/api/http/handlers"
+	users "deposit-collector/internal/users"
 	logger "deposit-collector/pkg/logger"
+	postgresql "deposit-collector/pkg/postgresql"
 	utils "deposit-collector/pkg/utils"
 )
 
@@ -19,7 +22,25 @@ func main() {
 
 	apiConfig := config.GetAPIConfig(logger)
 
-	server := http.NewServer(logger, apiConfig.Port, apiConfig.Host)
+	// Setup Postgres connection
+	db, err := postgresql.SetupPostgresConnection(apiConfig.PostgresURL)
+	if err != nil {
+		utils.FailOnError(logger, err, "error setting up postgres connection")
+	}
+	defer db.Close()
+
+	// Setup users services
+	usersRepository := users.NewUsersRepository(db)
+	usersService := users.NewUserService(usersRepository, logger)
+	usersHandler := handlers.NewUserHandler(usersService, logger)
+
+	// Setup server dependencies
+	serverDependencies := http.ServerDependencies{
+		Logger:       logger,
+		UsersHandler: usersHandler,
+	}
+
+	server := http.NewServer(serverDependencies)
 
 	go func() {
 		logger.Info(
@@ -40,7 +61,7 @@ func main() {
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
 
-	err := server.Shutdown(ctx)
+	err = server.Shutdown(ctx)
 	if err != nil {
 		utils.FailOnError(logger, err, "error shutting down server")
 	}

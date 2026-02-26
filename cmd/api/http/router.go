@@ -10,19 +10,22 @@ import (
 	healthcheck "github.com/gofiber/fiber/v3/middleware/healthcheck"
 )
 
-func RegisterRoutes(app *fiber.App, logger *logger.Logger) {
+type RouterDependencies struct {
+	Logger       *logger.Logger
+	UsersHandler *handlers.UserHandler
+}
+
+func RegisterRoutes(app *fiber.App, dependencies RouterDependencies) {
 	app.Get("/health", healthcheck.New())
 
 	apiV1 := app.Group("/api/v1")
 
-	userHandler := handlers.NewUserHandler(logger)
-
 	usersGroup := apiV1.Group("/users")
 	usersGroup.Use(validations.ValidateContentType(validations.ContentTypeJSON))
-	usersGroup.Get("/:id", userHandler.GetUser)
-	usersGroup.Post("/", userHandler.CreateUser)
-	usersGroup.Post("/:id/addresses", userHandler.GenerateAddress)
-	usersGroup.Post("/:id/deposits", userHandler.ManualDeposit)
-	usersGroup.Get("/:id/operations", userHandler.GetUserOperations)
+	usersGroup.Get("/:id", dependencies.UsersHandler.GetUser)
+	usersGroup.Post("/", dependencies.UsersHandler.CreateUser)
+	usersGroup.Post("/:id/addresses", dependencies.UsersHandler.GenerateAddress)
+	usersGroup.Post("/:id/deposits", dependencies.UsersHandler.ManualDeposit)
+	usersGroup.Get("/:id/operations", dependencies.UsersHandler.GetUserOperations)
 
 }
