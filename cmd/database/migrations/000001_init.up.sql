@@ -10,7 +10,12 @@ CREATE TABLE supported_chains (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     network VARCHAR(100) UNIQUE NOT NULL,
     chain_platform chain_platform NOT NULL,
-    bip44_id INTEGER UNIQUE NOT NULL
+    bip44_coin_type INTEGER UNIQUE NOT NULL,
+    -- EVM chain ID is the ID of the chain in the EVM network
+    -- Example: 1 for Ethereum mainnet
+    -- @TODO: This is only for EVM chains. This table should be generic for all chains and
+    -- not have columns for specific chains.
+    evm_chain_id INTEGER UNIQUE
 );
 
 

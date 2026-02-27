@@ -69,7 +69,8 @@ func (h *SystemHandler) GetSupportedTokens(c fiber.Ctx) {
 type AddNewSupportedChainRequest struct {
 	Network       string `json:"network" validate:"required"`
 	ChainPlatform string `json:"chainPlatform" validate:"required"`
-	BIP44ID       int    `json:"bip44Id" validate:"required,min=0"`
+	BIP44CoinType int    `json:"bip44CoinType" validate:"required,min=0"`
+	EVMChainID    int    `json:"evmChainId" validate:"required,min=0"`
 }
 
 func (h *SystemHandler) AddNewSupportedChain(c fiber.Ctx) {
@@ -90,7 +91,8 @@ func (h *SystemHandler) AddNewSupportedChain(c fiber.Ctx) {
 	err := h.systemService.AddNewSupportedChain(&system.NewSupportedChainRequest{
 		Network:       request.Network,
 		ChainPlatform: system.ChainPlatform(request.ChainPlatform),
-		BIP44ID:       request.BIP44ID,
+		BIP44CoinType: request.BIP44CoinType,
+		EVMChainID:    request.EVMChainID,
 	})
 	if err != nil {
 		utils.NewErrorResponse(

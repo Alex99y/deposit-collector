@@ -2,6 +2,6 @@
 
 ### Requirements
 - Go (>= 1.25.7)
-- Postgresql (>= 18.2)
+- Postgresql (>= 17.8)
 - Rabbitmq (>= 4.2.4)
 - Envio (Soon)
