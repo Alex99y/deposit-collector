@@ -40,11 +40,14 @@ func (e *EvmWallet) SignMessage(message string) ([]byte, error) {
 	return signature, nil
 }
 
-func GenerateEvmWallet(seed []byte, path string) (*EvmWallet, error) {
-	pathStruct, err := validateBIP44Path(path)
-	if err != nil {
-		return nil, utils.NewError("invalid BIP44 path: " + err.Error())
-	}
+func GenerateEvmWallet(
+	seed []byte, coinType uint32,
+	accountIndex uint32,
+	changeIndex uint32,
+	index uint32,
+) (*EvmWallet, error) {
+	pathStruct := NewBIP44(44, coinType, accountIndex, changeIndex, index)
+	path := pathStruct.GeneratePath()
 
 	masterKey, err := hdkeychain.NewMaster(seed, &chaincfg.MainNetParams)
 	if err != nil {

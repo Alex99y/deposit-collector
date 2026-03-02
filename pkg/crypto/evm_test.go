@@ -5,6 +5,11 @@ import (
 	"testing"
 )
 
+const evmCoinType = 60
+const evmAccountIndex = 0
+const evmChangeIndex = 0
+const evmIndex = 0
+
 func TestGenerateEvmWallet_ValidInput(t *testing.T) {
 	// Deterministic 32-byte seed (min length for BIP32 is 16, typical is 32)
 	seed := bytes.Repeat([]byte{0x01}, 32)
@@ -13,7 +18,9 @@ func TestGenerateEvmWallet_ValidInput(t *testing.T) {
 	expectedPublicKey := "04656c9dd5473505712a900575d376993496e8ea6775a7c1b8d3e8811847ae98007b1e7e824b151a7fc26a9e3cebfa3fb7beb6fa46850a680161c5c4a38bddf91d"
 	path := "m/44'/60'/0'/0/0"
 
-	wallet, err := GenerateEvmWallet(seed, path)
+	wallet, err := GenerateEvmWallet(
+		seed, evmCoinType, evmAccountIndex, evmChangeIndex, evmIndex,
+	)
 	if err != nil {
 		t.Fatalf("GenerateEvmWallet() unexpected error: %v", err)
 	}
@@ -34,38 +41,13 @@ func TestGenerateEvmWallet_ValidInput(t *testing.T) {
 	}
 }
 
-func TestGenerateEvmWallet_InvalidPath(t *testing.T) {
-	seed := make([]byte, 32)
-
-	tests := []struct {
-		name string
-		path string
-	}{
-		{"empty path", ""},
-		{"wrong segment count", "m/44'/60'"},
-		{"does not start with m", "x/44'/60'/0'/0/0"},
-		{"invalid purpose", "m/44/60'/0'/0/0"},
-		{"invalid coin type", "m/44'/xx'/0'/0/0"},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			wallet, err := GenerateEvmWallet(seed, tt.path)
-			if err == nil {
-				t.Fatal("expected error, got nil")
-			}
-			if wallet != nil {
-				t.Error("expected nil wallet on error")
-			}
-		})
-	}
-}
-
 func TestGenerateEvmWallet_InvalidSeed(t *testing.T) {
 	// Seed too short for BIP32 (min 16 bytes)
 	shortSeed := []byte{0x01}
-	path := "m/44'/60'/0'/0/0"
 
-	wallet, err := GenerateEvmWallet(shortSeed, path)
+	wallet, err := GenerateEvmWallet(
+		shortSeed, evmCoinType, evmAccountIndex, evmChangeIndex, evmIndex,
+	)
 	if err == nil {
 		t.Fatal("expected error for short seed, got nil")
 	}

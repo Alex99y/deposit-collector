@@ -14,8 +14,6 @@ import (
 	binary "encoding/binary"
 	hex "encoding/hex"
 
-	utils "deposit-collector/pkg/utils"
-
 	base58 "github.com/btcsuite/btcd/btcutil/base58"
 )
 
@@ -59,11 +57,15 @@ func deriveSolanaKey(seed []byte, path []uint32) ([]byte, error) {
 // It is used by Phantom, Solflare, Ledger compatible. As we are not
 // interested to maintain compatibility with other wallets,
 // we will use the full path.
-func GenerateSolanaWallet(seed []byte, path string) (*SolanaWallet, error) {
-	pathStruct, err := validateBIP44Path(path)
-	if err != nil {
-		return nil, utils.NewError("invalid BIP44 path: " + err.Error())
-	}
+func GenerateSolanaWallet(
+	seed []byte,
+	coinType uint32,
+	accountIndex uint32,
+	changeIndex uint32,
+	index uint32,
+) (*SolanaWallet, error) {
+	pathStruct := NewBIP44(44, coinType, accountIndex, changeIndex, index)
+	path := pathStruct.GeneratePath()
 	// 4-level path: purpose / coin_type / account / change
 	privateKey, err := deriveSolanaKey(
 		seed,
