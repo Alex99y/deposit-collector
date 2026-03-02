@@ -51,7 +51,7 @@ CREATE TABLE token_addresses (
     address VARCHAR(100) NOT NULL,
     -- ChainId references the supported_chains table because not all tokens are supported on all chains.
     chain_id UUID NOT NULL REFERENCES supported_chains(id),
-    decimals INTEGER NOT NULL,
+    decimals INTEGER NOT NULL
 );
 
 CREATE INDEX idx_token_addresses_address_chain_id ON token_addresses (address, chain_id);
@@ -68,7 +68,7 @@ CREATE TABLE user_balances (
     available_balance BIGINT NOT NULL,
     locked_balance BIGINT DEFAULT 0 NOT NULL,
     token_address_id UUID NOT NULL REFERENCES token_addresses(id),
-    updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE UNIQUE INDEX user_balances_user_id_token_address_id_uk ON user_balances (user_id, token_address_id);
@@ -87,7 +87,7 @@ CREATE TABLE user_addresses (
     sequence_number INTEGER NOT NULL,
     user_id UUID NOT NULL REFERENCES users(id),
     chain chain_platform NOT NULL,
-    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE UNIQUE INDEX user_addresses_user_address_chain_seq_uk ON user_addresses (user_id, address, chain, sequence_number);
@@ -102,7 +102,7 @@ CREATE UNIQUE INDEX user_addresses_user_chain_seq_uk ON user_addresses (user_id,
 CREATE TABLE operations (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id UUID NOT NULL REFERENCES users(id),
-    address_id UUID NOT NULL REFERENCES addresses(id),
+    address_id UUID NOT NULL REFERENCES user_addresses(id),
     token_address_id UUID NOT NULL REFERENCES token_addresses(id),
     amount BIGINT NOT NULL,
     type operation_type NOT NULL,

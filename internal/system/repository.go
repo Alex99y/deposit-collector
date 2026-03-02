@@ -19,7 +19,7 @@ func (r *SystemRepository) GetSupportedChains() ([]SupportedChain, error) {
 	var chains []SupportedChain
 
 	q := `
-SELECT id, network, chain_platform, evm_chain_id
+SELECT network, chain_platform, evm_chain_id
 FROM supported_chains
 `
 
@@ -32,7 +32,6 @@ FROM supported_chains
 	for rows.Next() {
 		var chain SupportedChain
 		err := rows.Scan(
-			&chain.ID,
 			&chain.Network,
 			&chain.ChainPlatform,
 			&chain.EVMChainID,
@@ -41,6 +40,10 @@ FROM supported_chains
 			return nil, err
 		}
 		chains = append(chains, chain)
+	}
+
+	if chains == nil && rows.Err() == nil {
+		return []SupportedChain{}, nil
 	}
 
 	return chains, nil
@@ -52,7 +55,7 @@ func (r *SystemRepository) AddNewSupportedChain(
 	q := `
 INSERT INTO supported_chains (
 	network, chain_platform, evm_chain_id
-) VALUES ($1, $2, $3, $4)
+) VALUES ($1, $2, $3)
 `
 
 	_, err := r.db.Exec(
@@ -112,8 +115,8 @@ func (r *SystemRepository) GetTokenAddresses(
 	var tokenAddresses []TokenAddress
 
 	q := `
-SELECT ta.id, ta.unit_name, ta.unit_symbol, ta.address, ta.decimals,
-sc.id, sc.network, sc.chain_platform, sc.evm_chain_id
+SELECT ta.unit_name, ta.unit_symbol, ta.address, ta.decimals,
+sc.network, sc.chain_platform, sc.evm_chain_id
 FROM token_addresses as ta
 INNER JOIN supported_chains as sc ON ta.chain_id = sc.id
 `
@@ -163,12 +166,10 @@ INNER JOIN supported_chains as sc ON ta.chain_id = sc.id
 		var tokenAddress TokenAddress
 		var chain SupportedChain
 		if err := rows.Scan(
-			&tokenAddress.ID,
 			&tokenAddress.UnitName,
 			&tokenAddress.UnitSymbol,
 			&tokenAddress.Address,
 			&tokenAddress.Decimals,
-			&chain.ID,
 			&chain.Network,
 			&chain.ChainPlatform,
 			&chain.EVMChainID,
@@ -177,6 +178,10 @@ INNER JOIN supported_chains as sc ON ta.chain_id = sc.id
 		}
 		tokenAddress.Chain = chain
 		tokenAddresses = append(tokenAddresses, tokenAddress)
+	}
+
+	if tokenAddresses == nil && rows.Err() == nil {
+		return []TokenAddress{}, nil
 	}
 	return tokenAddresses, rows.Err()
 }
@@ -187,20 +192,18 @@ func (r *SystemRepository) GetTokenAddressByID(
 	var tokenAddress TokenAddress
 	var chain SupportedChain
 	q := `
-SELECT ta.id, ta.unit_name, ta.unit_symbol, ta.address, ta.decimals,
-sc.id, sc.network, sc.chain_platform, sc.evm_chain_id
+SELECT ta.unit_name, ta.unit_symbol, ta.address, ta.decimals,
+sc.network, sc.chain_platform, sc.evm_chain_id
 FROM token_addresses as ta
 INNER JOIN supported_chains as sc ON ta.chain_id = sc.id
 WHERE ta.id = $1
 `
 
 	err := r.db.QueryRow(q, id).Scan(
-		&tokenAddress.ID,
 		&tokenAddress.UnitName,
 		&tokenAddress.UnitSymbol,
 		&tokenAddress.Address,
 		&tokenAddress.Decimals,
-		&chain.ID,
 		&chain.Network,
 		&chain.ChainPlatform,
 		&chain.EVMChainID,

@@ -120,11 +120,13 @@ func (h *SystemHandler) AddNewTokenAddress(c fiber.Ctx) {
 		return
 	}
 	err := h.systemService.AddNewTokenAddress(&system.NewTokenAddressRequest{
-		UnitName:   request.UnitName,
-		UnitSymbol: request.UnitSymbol,
-		Address:    request.Address,
-		Network:    request.Network,
-		Decimals:   request.Decimals,
+		BaseTokenAddress: system.BaseTokenAddress{
+			UnitName:   request.UnitName,
+			UnitSymbol: request.UnitSymbol,
+			Address:    request.Address,
+			Decimals:   request.Decimals,
+		},
+		Network: request.Network,
 	})
 	if err != nil {
 		utils.NewErrorResponse(

@@ -23,10 +23,10 @@ type StoreAddressRequest struct {
 }
 
 type StoredAddress struct {
-	StoreAddressRequest
-	UserID    uuid.UUID
-	Address   string
-	CreatedAt time.Time
+	Chain          system.ChainPlatform
+	SequenceNumber int
+	Address        string
+	CreatedAt      time.Time
 }
 
 type CreateAddressRequest struct {

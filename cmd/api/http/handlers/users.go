@@ -4,6 +4,7 @@ import (
 	json "encoding/json"
 
 	utils "deposit-collector/cmd/api/http/utils"
+	system "deposit-collector/internal/system"
 	users "deposit-collector/internal/users"
 	logger "deposit-collector/pkg/logger"
 
@@ -13,11 +14,6 @@ import (
 type UserHandler struct {
 	userController *users.UserService
 	logger         *logger.Logger
-}
-
-func (h *UserHandler) GetUser(c fiber.Ctx) {
-	c.Status(fiber.StatusOK)
-	_, _ = c.Write([]byte("ok"))
 }
 
 type CreateUserRequest struct {
@@ -53,17 +49,49 @@ func (h *UserHandler) CreateUser(c fiber.Ctx) {
 	_, _ = c.Write(jsonData)
 }
 
+type GenerateAddressRequest struct {
+	Chain string `json:"chain" validate:"required"`
+}
+
 func (h *UserHandler) GenerateAddress(c fiber.Ctx) {
+	var request GenerateAddressRequest
+	if err := c.Bind().JSON(&request); err != nil {
+		utils.NewErrorResponse(
+			c, fiber.StatusBadRequest, err.Error(),
+		)
+		return
+	}
+	address, err := h.userController.GenerateAddress(
+		c.Params("id"), system.ChainPlatform(request.Chain),
+	)
+	if err != nil {
+		utils.NewErrorResponse(
+			c, fiber.StatusInternalServerError, err.Error(),
+		)
+		return
+	}
 	c.Status(fiber.StatusOK)
-	_, _ = c.Write([]byte("ok"))
+	jsonData, _ := json.Marshal(map[string]string{
+		"address": address,
+	})
+	_, _ = c.Write(jsonData)
+}
+
+func (h *UserHandler) GetUserAddresses(c fiber.Ctx) {
+	// @TODO: Filter by platform
+	addresses, err := h.userController.GetUserAddresses(c.Params("id"))
+	if err != nil {
+		utils.NewErrorResponse(
+			c, fiber.StatusInternalServerError, err.Error(),
+		)
+		return
+	}
+	c.Status(fiber.StatusOK)
+	jsonData, _ := json.Marshal(addresses)
+	_, _ = c.Write(jsonData)
 }
 
 func (h *UserHandler) ManualDeposit(c fiber.Ctx) {
-	c.Status(fiber.StatusOK)
-	_, _ = c.Write([]byte("ok"))
-}
-
-func (h *UserHandler) GetUserOperations(c fiber.Ctx) {
 	c.Status(fiber.StatusOK)
 	_, _ = c.Write([]byte("ok"))
 }

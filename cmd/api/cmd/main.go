@@ -34,11 +34,13 @@ func main() {
 	}
 	defer db.Close()
 
-	walletServices := walletservices.NewWalletServices([]byte(""))
+	walletService := walletservices.NewWalletServices(
+		apiConfig.WalletSeed, logger,
+	)
 
 	// Setup users services
 	usersRepository := users.NewUsersRepository(serviceCtx, db)
-	usersService := users.NewUserService(usersRepository, walletServices, logger)
+	usersService := users.NewUserService(usersRepository, walletService, logger)
 	usersHandler := handlers.NewUserHandler(usersService, logger)
 
 	// Setup system services

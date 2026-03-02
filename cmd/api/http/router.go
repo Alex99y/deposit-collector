@@ -21,25 +21,24 @@ func RegisterRoutes(app *fiber.App, dependencies RouterDependencies) {
 
 	apiV1 := app.Group("/api/v1")
 
+	// Users group
 	usersGroup := apiV1.Group("/users")
-	usersGroup.Get("/:id", dependencies.UsersHandler.GetUser)
 	usersGroup.Post(
 		"/",
 		validations.ValidateContentType(validations.ContentTypeJSON),
 		dependencies.UsersHandler.CreateUser,
+	)
+	usersGroup.Get(
+		"/:id/addresses",
+		dependencies.UsersHandler.GetUserAddresses,
 	)
 	usersGroup.Post(
 		"/:id/addresses",
 		validations.ValidateContentType(validations.ContentTypeJSON),
 		dependencies.UsersHandler.GenerateAddress,
 	)
-	usersGroup.Post(
-		"/:id/deposits",
-		validations.ValidateContentType(validations.ContentTypeJSON),
-		dependencies.UsersHandler.ManualDeposit,
-	)
-	usersGroup.Get("/:id/operations", dependencies.UsersHandler.GetUserOperations)
 
+	// System group
 	systemGroup := apiV1.Group("/system")
 	systemGroup.Get("/chains", dependencies.SystemHandler.GetSupportedChains)
 	systemGroup.Get("/tokens", dependencies.SystemHandler.GetSupportedTokens)

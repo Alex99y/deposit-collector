@@ -2,8 +2,6 @@ package system
 
 import (
 	errors "errors"
-
-	"github.com/google/uuid"
 )
 
 type ChainPlatform string
@@ -35,7 +33,6 @@ type NewSupportedChainRequest struct {
 
 type SupportedChain struct {
 	NewSupportedChainRequest
-	ID uuid.UUID
 }
 
 /*
@@ -43,17 +40,21 @@ type SupportedChain struct {
 Network is the network of the chain.
 Example: Ethereum
 */
-type NewTokenAddressRequest struct {
+
+type BaseTokenAddress struct {
 	UnitName   string
 	UnitSymbol string
 	Address    string
-	Network    string
 	Decimals   int
 }
 
+type NewTokenAddressRequest struct {
+	BaseTokenAddress
+	Network string
+}
+
 type TokenAddress struct {
-	NewTokenAddressRequest
-	ID    uuid.UUID
+	BaseTokenAddress
 	Chain SupportedChain
 }
 

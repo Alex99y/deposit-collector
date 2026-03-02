@@ -6,6 +6,7 @@ import (
 	time "time"
 
 	postgresql "deposit-collector/pkg/postgresql"
+	"deposit-collector/pkg/utils"
 
 	uuid "github.com/google/uuid"
 )
@@ -98,7 +99,7 @@ func (r *UsersRepository) GetAddressesByExternalID(
 	var addresses []StoredAddress
 
 	q := `
-SELECT ua.address, ua.sequence_number, ua.user_id, ua.chain, ua.created_at
+SELECT ua.address, ua.sequence_number, ua.chain, ua.created_at
 FROM user_addresses ua
 INNER JOIN users u ON ua.user_id = u.id
 WHERE u.external_id = $1`
@@ -117,14 +118,17 @@ WHERE u.external_id = $1`
 			&address.Address,
 			&address.SequenceNumber,
 			&address.Chain,
-			&address.UserID,
 			&address.CreatedAt,
 		)
-		address.ExternalID = externalID
+
 		if err != nil {
 			return nil, err
 		}
 		addresses = append(addresses, address)
+	}
+
+	if addresses == nil && rows.Err() == nil {
+		return []StoredAddress{}, nil
 	}
 
 	return addresses, nil
@@ -132,26 +136,30 @@ WHERE u.external_id = $1`
 
 func (r *UsersRepository) StoreAddress(
 	request *StoreAddressRequest,
-	getAddressFromSequenceNumber func(sequenceNumber int) (string, error),
-) (*uuid.UUID, error) {
+	getAddressFromSequenceNumber func(
+		userAccountID uint32,
+		sequenceNumber uint32,
+	) (string, error),
+) (string, error) {
 	tx, err := r.db.BeginTx(r.ctx, nil)
 	if err != nil {
-		return nil, err
+		return "", err
 	}
 	defer tx.Rollback()
 
 	var userID uuid.UUID
+	var userAccountID uint32
 	err = tx.QueryRowContext(
 		r.ctx,
-		"SELECT id FROM users WHERE external_id = $1 FOR UPDATE",
+		"SELECT id, account_id FROM users WHERE external_id = $1 FOR UPDATE",
 		request.ExternalID,
-	).Scan(&userID)
+	).Scan(&userID, &userAccountID)
 	if err != nil {
 		// User not found
-		return nil, err
+		return "", utils.NewError("user not found: " + request.ExternalID)
 	}
 
-	var sequenceNumber int
+	var sequenceNumber uint32
 	querySequenceNumber := `
 SELECT COALESCE(MAX(sequence_number), -1) + 1
 FROM user_addresses
@@ -161,12 +169,14 @@ WHERE user_id = $1 AND chain = $2
 		r.ctx, querySequenceNumber, userID, request.Chain,
 	).Scan(&sequenceNumber)
 	if err != nil {
-		return nil, err
+		return "", utils.NewError("error getting sequence number: " + err.Error())
 	}
 
-	addressString, err := getAddressFromSequenceNumber(sequenceNumber)
+	addressString, err := getAddressFromSequenceNumber(
+		userAccountID, sequenceNumber,
+	)
 	if err != nil {
-		return nil, err
+		return "", utils.NewError("error getting address from sequence number: " + err.Error())
 	}
 
 	var addressID uuid.UUID
@@ -179,14 +189,15 @@ RETURNING id
 		r.ctx, insertAddressQuery,
 		addressString, sequenceNumber, userID, request.Chain,
 	).Scan(&addressID)
+
 	if err != nil {
-		return nil, err
+		return "", utils.NewError("error inserting address: " + err.Error())
 	}
 
 	if err := tx.Commit(); err != nil {
-		return nil, err
+		return "", utils.NewError("error committing transaction: " + err.Error())
 	}
-	return &addressID, nil
+	return addressString, nil
 }
 
 func NewUsersRepository(

@@ -1,8 +1,11 @@
 package walletservices
 
 import (
+	hex "encoding/hex"
+
 	system "deposit-collector/internal/system"
 	crypto "deposit-collector/pkg/crypto"
+	logger "deposit-collector/pkg/logger"
 	utils "deposit-collector/pkg/utils"
 )
 
@@ -19,7 +22,6 @@ type WalletServices struct {
 }
 
 func (s *WalletServices) GenerateWallet(
-	externalID string,
 	accountIndex uint32,
 	changeIndex uint32,
 	index uint32,
@@ -36,7 +38,12 @@ func (s *WalletServices) GenerateWallet(
 		return evmWallet, nil
 	case system.ChainPlatformBTC:
 		btcWallet, err := crypto.GenerateBitcoinWallet(
-			s.seed, false, crypto.PurposeBTCNativeSegwit, accountIndex, changeIndex, index,
+			s.seed,
+			false,
+			crypto.PurposeBTCNativeSegwit,
+			accountIndex,
+			changeIndex,
+			index,
 		)
 		if err != nil {
 			return nil, err
@@ -56,9 +63,18 @@ func (s *WalletServices) GenerateWallet(
 }
 
 func NewWalletServices(
-	seed []byte,
+	seed string,
+	logger *logger.Logger,
 ) *WalletServices {
+	seedBytes, err := hex.DecodeString(seed)
+	if err != nil {
+		utils.FailOnError(
+			logger,
+			err,
+			"Error decoding wallet seed",
+		)
+	}
 	return &WalletServices{
-		seed: seed,
+		seed: seedBytes,
 	}
 }

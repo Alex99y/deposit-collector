@@ -16,6 +16,7 @@ type CommonConfig struct {
 	RabbitMQURL string
 	MetricsPort int
 	PostgresURL string
+	WalletSeed  string
 }
 
 func loadEnvFile(logger *logger.Logger) {
@@ -58,5 +59,6 @@ func GetCommonConfig(logger *logger.Logger) *CommonConfig {
 		RabbitMQURL: GetEnvOrThrow(logger, RabbitMQURL),
 		MetricsPort: metricsPort,
 		PostgresURL: GetEnvOrThrow(logger, PostgresURL),
+		WalletSeed:  GetEnvOrThrow(logger, WalletSeed),
 	}
 }

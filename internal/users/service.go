@@ -1,8 +1,6 @@
 package users
 
 import (
-	fmt "fmt"
-
 	system "deposit-collector/internal/system"
 	walletservices "deposit-collector/internal/wallet_services"
 	logger "deposit-collector/pkg/logger"
@@ -17,26 +15,25 @@ type UserService struct {
 func (s *UserService) CreateUser(externalID string) error {
 	err := s.usersRepository.CreateUser(externalID)
 	if err != nil {
-		s.logger.Error(fmt.Sprintf("Error creating user %s: %s", externalID, err))
 		return err
 	}
 
-	s.logger.Debug(fmt.Sprintf("User created with ID %s", externalID))
+	s.logger.Debug("User created with ID " + externalID)
 	return nil
 }
 
 func (s *UserService) GenerateAddress(
 	externalID string,
 	chain system.ChainPlatform,
-) error {
-	_, err := s.usersRepository.StoreAddress(
+) (string, error) {
+	address, err := s.usersRepository.StoreAddress(
 		&StoreAddressRequest{
 			ExternalID: externalID,
 			Chain:      chain,
 		},
-		func(sequenceNumber int) (string, error) {
+		func(userAccountID uint32, sequenceNumber uint32) (string, error) {
 			wallet, err := s.walletServices.GenerateWallet(
-				externalID, uint32(sequenceNumber), 0, 0, chain,
+				userAccountID, 0, sequenceNumber, chain,
 			)
 			if err != nil {
 				return "", err
@@ -45,7 +42,13 @@ func (s *UserService) GenerateAddress(
 		},
 	)
 
-	return err
+	return address, err
+}
+
+func (s *UserService) GetUserAddresses(
+	externalID string,
+) ([]StoredAddress, error) {
+	return s.usersRepository.GetAddressesByExternalID(externalID)
 }
 
 func NewUserService(
@@ -55,6 +58,7 @@ func NewUserService(
 ) *UserService {
 	return &UserService{
 		usersRepository: usersRepository,
+		walletServices:  walletServices,
 		logger:          logger,
 	}
 }
