@@ -26,28 +26,37 @@ type BitcoinWallet struct {
 	WIF        string
 }
 
+func (b *BitcoinWallet) GetAddress() string {
+	return b.Address
+}
+
+func (b *BitcoinWallet) SignMessage(message string) ([]byte, error) {
+	return nil, nil
+}
+
 func GenerateBitcoinWallet(
 	seed []byte,
-	coinType uint32,
+	isTestnet bool,
+	purpose uint32,
 	accountIndex uint32,
 	changeIndex uint32,
 	index uint32,
 ) (*BitcoinWallet, error) {
 	var params *chaincfg.Params
-	switch coinType {
-	case 0:
-		params = &chaincfg.MainNetParams
-	case 1:
+	var coinType uint32
+	if isTestnet {
 		params = &chaincfg.TestNet3Params
-	default:
-		return nil, utils.NewError("invalid coin type")
+		coinType = CoinTypeBTCTestnet
+	} else {
+		params = &chaincfg.MainNetParams
+		coinType = CoinTypeBTC
 	}
-	if coinType == 84 {
+	if purpose == PurposeBTCNativeSegwit {
 		return generateNativeSegwitWallet(
 			seed, params, coinType, accountIndex, changeIndex, index,
 		)
 	}
-	return nil, utils.NewError("bitcoin coin type not supported")
+	return nil, utils.NewError("bitcoin purpose not supported")
 }
 
 func generateNativeSegwitWallet(
@@ -59,7 +68,8 @@ func generateNativeSegwitWallet(
 	index uint32,
 ) (*BitcoinWallet, error) {
 	key, err := deriveKey(
-		seed, params, 84, coinType, accountIndex, changeIndex, index,
+		seed, params, PurposeBTCNativeSegwit,
+		coinType, accountIndex, changeIndex, index,
 	)
 	if err != nil {
 		return nil, err

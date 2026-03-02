@@ -4,11 +4,13 @@ import (
 	fmt "fmt"
 
 	system "deposit-collector/internal/system"
+	walletservices "deposit-collector/internal/wallet_services"
 	logger "deposit-collector/pkg/logger"
 )
 
 type UserService struct {
 	usersRepository *UsersRepository
+	walletServices  *walletservices.WalletServices
 	logger          *logger.Logger
 }
 
@@ -27,19 +29,28 @@ func (s *UserService) GenerateAddress(
 	externalID string,
 	chain system.ChainPlatform,
 ) error {
-	switch chain {
-	case system.ChainPlatformEVM:
-		// Generate EVM address
-	case system.ChainPlatformBTC:
-		// Generate BTC address
-	case system.ChainPlatformSOL:
-		// Generate SOL address
-	}
-	return nil
+	_, err := s.usersRepository.StoreAddress(
+		&StoreAddressRequest{
+			ExternalID: externalID,
+			Chain:      chain,
+		},
+		func(sequenceNumber int) (string, error) {
+			wallet, err := s.walletServices.GenerateWallet(
+				externalID, uint32(sequenceNumber), 0, 0, chain,
+			)
+			if err != nil {
+				return "", err
+			}
+			return wallet.GetAddress(), nil
+		},
+	)
+
+	return err
 }
 
 func NewUserService(
 	usersRepository *UsersRepository,
+	walletServices *walletservices.WalletServices,
 	logger *logger.Logger,
 ) *UserService {
 	return &UserService{

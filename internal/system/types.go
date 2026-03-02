@@ -30,7 +30,6 @@ func ValidateChainPlatform(chainPlatform string) error {
 type NewSupportedChainRequest struct {
 	Network       string
 	ChainPlatform ChainPlatform
-	BIP44CoinType int
 	EVMChainID    int
 }
 

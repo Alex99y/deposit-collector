@@ -5,7 +5,6 @@ import (
 	"testing"
 )
 
-const evmCoinType = 60
 const evmAccountIndex = 0
 const evmChangeIndex = 0
 const evmIndex = 0
@@ -19,7 +18,7 @@ func TestGenerateEvmWallet_ValidInput(t *testing.T) {
 	path := "m/44'/60'/0'/0/0"
 
 	wallet, err := GenerateEvmWallet(
-		seed, evmCoinType, evmAccountIndex, evmChangeIndex, evmIndex,
+		seed, evmAccountIndex, evmChangeIndex, evmIndex,
 	)
 	if err != nil {
 		t.Fatalf("GenerateEvmWallet() unexpected error: %v", err)
@@ -46,7 +45,7 @@ func TestGenerateEvmWallet_InvalidSeed(t *testing.T) {
 	shortSeed := []byte{0x01}
 
 	wallet, err := GenerateEvmWallet(
-		shortSeed, evmCoinType, evmAccountIndex, evmChangeIndex, evmIndex,
+		shortSeed, evmAccountIndex, evmChangeIndex, evmIndex,
 	)
 	if err == nil {
 		t.Fatal("expected error for short seed, got nil")

@@ -11,7 +11,9 @@ import (
 func TestGenerateBitcoinWallet_ValidInput_Mainnet(t *testing.T) {
 	seed := bytes.Repeat([]byte{0x01}, 32)
 	// coinType 0 = mainnet, BIP84 Native SegWit
-	wallet, err := GenerateBitcoinWallet(seed, 0, 0, 0, 0)
+	wallet, err := GenerateBitcoinWallet(
+		seed, false, PurposeBTCNativeSegwit, 0, 0, 0,
+	)
 	if err != nil {
 		t.Fatalf("GenerateBitcoinWallet() unexpected error: %v", err)
 	}
@@ -33,7 +35,9 @@ func TestGenerateBitcoinWallet_ValidInput_Mainnet(t *testing.T) {
 func TestGenerateBitcoinWallet_ValidInput_Testnet(t *testing.T) {
 	seed := bytes.Repeat([]byte{0x42}, 32)
 	// coinType 1 = testnet
-	wallet, err := GenerateBitcoinWallet(seed, 1, 0, 0, 0)
+	wallet, err := GenerateBitcoinWallet(
+		seed, true, PurposeBTCNativeSegwit, 0, 0, 0,
+	)
 	if err != nil {
 		t.Fatalf("GenerateBitcoinWallet() unexpected error: %v", err)
 	}
@@ -54,11 +58,11 @@ func TestGenerateBitcoinWallet_ValidInput_Testnet(t *testing.T) {
 
 func TestGenerateBitcoinWallet_InvalidCoinType(t *testing.T) {
 	seed := make([]byte, 32)
-	_, err := GenerateBitcoinWallet(seed, 99, 0, 0, 0)
+	_, err := GenerateBitcoinWallet(seed, false, 99, 0, 0, 0)
 	if err == nil {
-		t.Fatal("expected error for invalid coin type, got nil")
+		t.Fatal("expected error for invalid bitcoin purpose not supported, got nil")
 	}
-	if !strings.Contains(err.Error(), "invalid coin type") {
+	if !strings.Contains(err.Error(), "bitcoin purpose not supported") {
 		t.Errorf("error should mention invalid coin type: %v", err)
 	}
 }
@@ -66,11 +70,11 @@ func TestGenerateBitcoinWallet_InvalidCoinType(t *testing.T) {
 func TestGenerateBitcoinWallet_Deterministic(t *testing.T) {
 	seed := bytes.Repeat([]byte{0xab}, 32)
 
-	w1, err := GenerateBitcoinWallet(seed, 0, 0, 0, 0)
+	w1, err := GenerateBitcoinWallet(seed, false, PurposeBTCNativeSegwit, 0, 0, 0)
 	if err != nil {
 		t.Fatalf("first call: %v", err)
 	}
-	w2, err := GenerateBitcoinWallet(seed, 0, 0, 0, 0)
+	w2, err := GenerateBitcoinWallet(seed, false, PurposeBTCNativeSegwit, 0, 0, 0)
 	if err != nil {
 		t.Fatalf("second call: %v", err)
 	}
@@ -91,11 +95,11 @@ func TestGenerateBitcoinWallet_DifferentIndicesDifferentAddrs(t *testing.T) {
 		seed[i] = byte(i)
 	}
 
-	w1, err := GenerateBitcoinWallet(seed, 0, 0, 0, 0)
+	w1, err := GenerateBitcoinWallet(seed, false, PurposeBTCNativeSegwit, 0, 0, 0)
 	if err != nil {
 		t.Fatalf("index 0: %v", err)
 	}
-	w2, err := GenerateBitcoinWallet(seed, 0, 0, 0, 1)
+	w2, err := GenerateBitcoinWallet(seed, false, PurposeBTCNativeSegwit, 0, 0, 1)
 	if err != nil {
 		t.Fatalf("index 1: %v", err)
 	}
@@ -106,7 +110,9 @@ func TestGenerateBitcoinWallet_DifferentIndicesDifferentAddrs(t *testing.T) {
 
 func TestGenerateBitcoinWallet_InvalidSeed(t *testing.T) {
 	shortSeed := []byte{0x01}
-	_, err := GenerateBitcoinWallet(shortSeed, 0, 0, 0, 0)
+	_, err := GenerateBitcoinWallet(
+		shortSeed, false, PurposeBTCNativeSegwit, 0, 0, 0,
+	)
 	if err == nil {
 		t.Fatal("expected error for short seed, got nil")
 	}

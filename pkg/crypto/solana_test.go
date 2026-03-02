@@ -6,7 +6,6 @@ import (
 )
 
 // Solana BIP44 path: m/44'/501'/0'/0/0 (501 is Solana's coin type)
-const solanaCoinType = 501
 const solanaAccountIndex = 0
 const solanaChangeIndex = 0
 const solanaIndex = 0
@@ -21,7 +20,7 @@ func TestGenerateSolanaWallet_ValidInput(t *testing.T) {
 	publicKey := "CQvWgQkJqDSQjq5b4JZnH5DKveCXgkDzwBfoj8yXdbeG"
 
 	wallet, err := GenerateSolanaWallet(
-		seed, solanaCoinType, solanaAccountIndex, solanaChangeIndex, solanaIndex,
+		seed, solanaAccountIndex, solanaChangeIndex, solanaIndex,
 	)
 	if err != nil {
 		t.Fatalf("GenerateSolanaWallet() unexpected error: %v", err)

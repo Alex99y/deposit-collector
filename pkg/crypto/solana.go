@@ -24,6 +24,14 @@ type SolanaWallet struct {
 	Path       string
 }
 
+func (s *SolanaWallet) GetAddress() string {
+	return s.Address
+}
+
+func (s *SolanaWallet) SignMessage(message string) ([]byte, error) {
+	return nil, nil
+}
+
 func deriveSolanaKey(seed []byte, path []uint32) ([]byte, error) {
 	mac := hmac.New(sha512.New, []byte("ed25519 seed"))
 	mac.Write(seed)
@@ -59,12 +67,11 @@ func deriveSolanaKey(seed []byte, path []uint32) ([]byte, error) {
 // we will use the full path.
 func GenerateSolanaWallet(
 	seed []byte,
-	coinType uint32,
 	accountIndex uint32,
 	changeIndex uint32,
 	index uint32,
 ) (*SolanaWallet, error) {
-	pathStruct := NewBIP44(44, coinType, accountIndex, changeIndex, index)
+	pathStruct := NewBIP44(PurposeSOL, CoinTypeSOL, accountIndex, changeIndex, index)
 	path := pathStruct.GeneratePath()
 	// 4-level path: purpose / coin_type / account / change
 	privateKey, err := deriveSolanaKey(

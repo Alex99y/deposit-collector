@@ -19,7 +19,7 @@ func (r *SystemRepository) GetSupportedChains() ([]SupportedChain, error) {
 	var chains []SupportedChain
 
 	q := `
-SELECT id, network, chain_platform, bip44_coin_type, evm_chain_id
+SELECT id, network, chain_platform, evm_chain_id
 FROM supported_chains
 `
 
@@ -35,7 +35,6 @@ FROM supported_chains
 			&chain.ID,
 			&chain.Network,
 			&chain.ChainPlatform,
-			&chain.BIP44CoinType,
 			&chain.EVMChainID,
 		)
 		if err != nil {
@@ -52,7 +51,7 @@ func (r *SystemRepository) AddNewSupportedChain(
 ) error {
 	q := `
 INSERT INTO supported_chains (
-	network, chain_platform, bip44_coin_type, evm_chain_id
+	network, chain_platform, evm_chain_id
 ) VALUES ($1, $2, $3, $4)
 `
 
@@ -60,7 +59,6 @@ INSERT INTO supported_chains (
 		q,
 		strings.ToLower(chain.Network),
 		strings.ToUpper(string(chain.ChainPlatform)),
-		chain.BIP44CoinType,
 		chain.EVMChainID,
 	)
 	if err == sql.ErrNoRows {
@@ -115,7 +113,7 @@ func (r *SystemRepository) GetTokenAddresses(
 
 	q := `
 SELECT ta.id, ta.unit_name, ta.unit_symbol, ta.address, ta.decimals,
-sc.id, sc.network, sc.chain_platform, sc.bip44_coin_type, sc.evm_chain_id
+sc.id, sc.network, sc.chain_platform, sc.evm_chain_id
 FROM token_addresses as ta
 INNER JOIN supported_chains as sc ON ta.chain_id = sc.id
 `
@@ -173,7 +171,6 @@ INNER JOIN supported_chains as sc ON ta.chain_id = sc.id
 			&chain.ID,
 			&chain.Network,
 			&chain.ChainPlatform,
-			&chain.BIP44CoinType,
 			&chain.EVMChainID,
 		); err != nil {
 			return nil, err
@@ -191,7 +188,7 @@ func (r *SystemRepository) GetTokenAddressByID(
 	var chain SupportedChain
 	q := `
 SELECT ta.id, ta.unit_name, ta.unit_symbol, ta.address, ta.decimals,
-sc.id, sc.network, sc.chain_platform, sc.bip44_coin_type, sc.evm_chain_id
+sc.id, sc.network, sc.chain_platform, sc.evm_chain_id
 FROM token_addresses as ta
 INNER JOIN supported_chains as sc ON ta.chain_id = sc.id
 WHERE ta.id = $1
@@ -206,7 +203,6 @@ WHERE ta.id = $1
 		&chain.ID,
 		&chain.Network,
 		&chain.ChainPlatform,
-		&chain.BIP44CoinType,
 		&chain.EVMChainID,
 	)
 	if err != nil {

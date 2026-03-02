@@ -13,6 +13,7 @@ import (
 	handlers "deposit-collector/cmd/api/http/handlers"
 	system "deposit-collector/internal/system"
 	users "deposit-collector/internal/users"
+	walletservices "deposit-collector/internal/wallet_services"
 	logger "deposit-collector/pkg/logger"
 	postgresql "deposit-collector/pkg/postgresql"
 	utils "deposit-collector/pkg/utils"
@@ -26,16 +27,18 @@ func main() {
 	serviceCtx, cancelServiceCtx := context.WithCancel(context.Background())
 	defer cancelServiceCtx()
 
-	// Setup Postgres connection
+	// Common services
 	db, err := postgresql.SetupPostgresConnection(apiConfig.PostgresURL)
 	if err != nil {
 		utils.FailOnError(logger, err, "error setting up postgres connection")
 	}
 	defer db.Close()
 
+	walletServices := walletservices.NewWalletServices([]byte(""))
+
 	// Setup users services
 	usersRepository := users.NewUsersRepository(serviceCtx, db)
-	usersService := users.NewUserService(usersRepository, logger)
+	usersService := users.NewUserService(usersRepository, walletServices, logger)
 	usersHandler := handlers.NewUserHandler(usersService, logger)
 
 	// Setup system services

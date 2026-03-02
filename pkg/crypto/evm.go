@@ -25,6 +25,10 @@ type EvmWallet struct {
 	Path       string
 }
 
+func (e *EvmWallet) GetAddress() string {
+	return e.Address
+}
+
 func (e *EvmWallet) SignMessage(message string) ([]byte, error) {
 	messageHash := crypto.Keccak256([]byte(message))
 	privateKey, err := crypto.HexToECDSA(e.PrivateKey)
@@ -41,12 +45,12 @@ func (e *EvmWallet) SignMessage(message string) ([]byte, error) {
 }
 
 func GenerateEvmWallet(
-	seed []byte, coinType uint32,
+	seed []byte,
 	accountIndex uint32,
 	changeIndex uint32,
 	index uint32,
 ) (*EvmWallet, error) {
-	pathStruct := NewBIP44(44, coinType, accountIndex, changeIndex, index)
+	pathStruct := NewBIP44(PurposeEVM, CoinTypeEVM, accountIndex, changeIndex, index)
 	path := pathStruct.GeneratePath()
 
 	masterKey, err := hdkeychain.NewMaster(seed, &chaincfg.MainNetParams)

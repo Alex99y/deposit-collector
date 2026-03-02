@@ -2,6 +2,21 @@ package crypto
 
 import "fmt"
 
+const (
+	// Bitcoin
+	PurposeBTCNativeSegwit = 84
+	CoinTypeBTC            = 0
+	CoinTypeBTCTestnet     = 1
+
+	// Ethereum
+	PurposeEVM  = 44
+	CoinTypeEVM = 60
+
+	// Solana
+	PurposeSOL  = 44
+	CoinTypeSOL = 501
+)
+
 type BIP44Path struct {
 	Purpose  uint32
 	CoinType uint32
