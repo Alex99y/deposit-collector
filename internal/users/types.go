@@ -16,13 +16,17 @@ type StoredUser struct {
 	UpdatedAt  time.Time
 }
 
-type StoredAddress struct {
-	ID             uuid.UUID
-	Address        string
-	SequenceNumber int
-	UserID         uuid.UUID
+type StoreAddressRequest struct {
+	ExternalID     string
 	Chain          system.ChainPlatform
-	CreatedAt      time.Time
+	SequenceNumber int
+}
+
+type StoredAddress struct {
+	StoreAddressRequest
+	UserID    uuid.UUID
+	Address   string
+	CreatedAt time.Time
 }
 
 type CreateAddressRequest struct {

@@ -3,6 +3,7 @@ package users
 import (
 	fmt "fmt"
 
+	system "deposit-collector/internal/system"
 	logger "deposit-collector/pkg/logger"
 )
 
@@ -19,6 +20,21 @@ func (s *UserService) CreateUser(externalID string) error {
 	}
 
 	s.logger.Debug(fmt.Sprintf("User created with ID %s", externalID))
+	return nil
+}
+
+func (s *UserService) GenerateAddress(
+	externalID string,
+	chain system.ChainPlatform,
+) error {
+	switch chain {
+	case system.ChainPlatformEVM:
+		// Generate EVM address
+	case system.ChainPlatformBTC:
+		// Generate BTC address
+	case system.ChainPlatformSOL:
+		// Generate SOL address
+	}
 	return nil
 }
 

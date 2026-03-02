@@ -43,14 +43,14 @@ func GenerateBitcoinWallet(
 		return nil, utils.NewError("invalid coin type")
 	}
 	if coinType == 84 {
-		return GenerateNativeSegwitWallet(
+		return generateNativeSegwitWallet(
 			seed, params, coinType, accountIndex, changeIndex, index,
 		)
 	}
 	return nil, utils.NewError("bitcoin coin type not supported")
 }
 
-func GenerateNativeSegwitWallet(
+func generateNativeSegwitWallet(
 	seed []byte,
 	params *chaincfg.Params,
 	coinType uint32,

@@ -53,8 +53,9 @@ CREATE TABLE token_addresses (
     -- ChainId references the supported_chains table because not all tokens are supported on all chains.
     chain_id UUID NOT NULL REFERENCES supported_chains(id),
     decimals INTEGER NOT NULL,
-    UNIQUE (address, chain_id)
 );
+
+CREATE INDEX idx_token_addresses_address_chain_id ON token_addresses (address, chain_id);
 
 
 -- User balances table stores the balances of the users in the system
@@ -69,15 +70,15 @@ CREATE TABLE user_balances (
     locked_balance BIGINT DEFAULT 0 NOT NULL,
     token_address_id UUID NOT NULL REFERENCES token_addresses(id),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    UNIQUE (user_id, token_address_id)
 );
 
+CREATE UNIQUE INDEX user_balances_user_id_token_address_id_uk ON user_balances (user_id, token_address_id);
 
 -- This is the main feature of the system. It stores the addresses of the users. Each address is unique for each one.
 -- It is referenced by the user accountId and the sequenceNumber. SequenceNumber is the index of the derivation path
 -- Example: m/44'/60'/{account_id}'/0/{sequence_number} for Ethereum
 
-CREATE TABLE addresses (
+CREATE TABLE user_addresses (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     -- Address is the public address of the user
     -- Example: 0x1234567890123456789012345678901234567890 for Ethereum
@@ -88,12 +89,10 @@ CREATE TABLE addresses (
     user_id UUID NOT NULL REFERENCES users(id),
     chain chain_platform NOT NULL,
     created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    UNIQUE (address, chain)
 );
 
-CREATE INDEX idx_addresses_user_id ON addresses (user_id);
-CREATE UNIQUE INDEX idx_addresses_user_address_chain ON addresses (user_id, address, chain);
-
+CREATE UNIQUE INDEX user_addresses_user_address_chain_seq_uk ON user_addresses (user_id, address, chain, sequence_number);
+CREATE UNIQUE INDEX user_addresses_user_chain_seq_uk ON user_addresses (user_id, chain, sequence_number);
 
 -- Operations table stores the operations of the users in the system
 -- Example: User with ID 1234567890 has deposited 100 USDC to address 0x1234567890123456789012345678901234567890 for Ethereum

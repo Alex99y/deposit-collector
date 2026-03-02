@@ -116,7 +116,7 @@ func TestGenerateNativeSegwitWallet_ValidInput(t *testing.T) {
 	seed := bytes.Repeat([]byte{0x01}, 32)
 	params := &chaincfg.MainNetParams
 
-	wallet, err := GenerateNativeSegwitWallet(seed, params, 0, 0, 0, 0)
+	wallet, err := generateNativeSegwitWallet(seed, params, 0, 0, 0, 0)
 	if err != nil {
 		t.Fatalf("GenerateNativeSegwitWallet() unexpected error: %v", err)
 	}

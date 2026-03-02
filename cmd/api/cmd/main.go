@@ -23,6 +23,9 @@ func main() {
 
 	apiConfig := config.GetAPIConfig(logger)
 
+	serviceCtx, cancelServiceCtx := context.WithCancel(context.Background())
+	defer cancelServiceCtx()
+
 	// Setup Postgres connection
 	db, err := postgresql.SetupPostgresConnection(apiConfig.PostgresURL)
 	if err != nil {
@@ -31,7 +34,7 @@ func main() {
 	defer db.Close()
 
 	// Setup users services
-	usersRepository := users.NewUsersRepository(db)
+	usersRepository := users.NewUsersRepository(serviceCtx, db)
 	usersService := users.NewUserService(usersRepository, logger)
 	usersHandler := handlers.NewUserHandler(usersService, logger)
 
