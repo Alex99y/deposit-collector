@@ -26,7 +26,7 @@ func ValidateChainPlatform(chainPlatform string) error {
 }
 
 type NewSupportedChainRequest struct {
-	Network       string
+	ChainName     string
 	ChainPlatform ChainPlatform
 	EVMChainID    int
 }
@@ -37,7 +37,7 @@ type SupportedChain struct {
 
 /*
 *
-Network is the network of the chain.
+ChainName is the name of the chain.
 Example: Ethereum
 */
 
@@ -50,7 +50,7 @@ type BaseTokenAddress struct {
 
 type NewTokenAddressRequest struct {
 	BaseTokenAddress
-	Network string
+	ChainName string
 }
 
 type TokenAddress struct {

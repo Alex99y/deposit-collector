@@ -45,6 +45,13 @@ func (s *UserService) GenerateAddress(
 	return address, err
 }
 
+func (s *UserService) AddressAndChainNameExists(
+	address string,
+	chainName string,
+) (bool, error) {
+	return s.usersRepository.AddressAndChainNameExists(address, chainName)
+}
+
 func (s *UserService) GetUserAddresses(
 	externalID string,
 ) ([]StoredAddress, error) {

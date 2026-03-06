@@ -4,15 +4,18 @@ import (
 	json "encoding/json"
 
 	utils "deposit-collector/cmd/api/http/utils"
+	worker "deposit-collector/cmd/api/worker"
 	system "deposit-collector/internal/system"
 	users "deposit-collector/internal/users"
 	logger "deposit-collector/pkg/logger"
 
 	fiber "github.com/gofiber/fiber/v3"
+	uuid "github.com/google/uuid"
 )
 
 type UserHandler struct {
 	userController *users.UserService
+	publisher      *worker.Publisher
 	logger         *logger.Logger
 }
 
@@ -23,14 +26,14 @@ type CreateUserRequest struct {
 func (h *UserHandler) CreateUser(c fiber.Ctx) {
 	user := new(CreateUserRequest)
 	if err := c.Bind().Body(user); err != nil {
-		utils.NewErrorResponse(
+		_ = utils.NewErrorResponse(
 			c, fiber.StatusBadRequest, "invalid request body",
 		)
 		return
 	}
 
 	if user.ExternalID == "" {
-		utils.NewErrorResponse(
+		_ = utils.NewErrorResponse(
 			c, fiber.StatusBadRequest, "externalId is required",
 		)
 		return
@@ -38,8 +41,8 @@ func (h *UserHandler) CreateUser(c fiber.Ctx) {
 
 	err := h.userController.CreateUser(user.ExternalID)
 	if err != nil {
-		utils.NewErrorResponse(
-			c, fiber.StatusBadRequest, "error creating user",
+		_ = utils.NewServerErrorResponse(
+			c, h.logger, err,
 		)
 		return
 	}
@@ -56,7 +59,7 @@ type GenerateAddressRequest struct {
 func (h *UserHandler) GenerateAddress(c fiber.Ctx) {
 	var request GenerateAddressRequest
 	if err := c.Bind().JSON(&request); err != nil {
-		utils.NewErrorResponse(
+		_ = utils.NewErrorResponse(
 			c, fiber.StatusBadRequest, err.Error(),
 		)
 		return
@@ -65,9 +68,7 @@ func (h *UserHandler) GenerateAddress(c fiber.Ctx) {
 		c.Params("id"), system.ChainPlatform(request.Chain),
 	)
 	if err != nil {
-		utils.NewErrorResponse(
-			c, fiber.StatusInternalServerError, err.Error(),
-		)
+		_ = utils.NewServerErrorResponse(c, h.logger, err)
 		return
 	}
 	c.Status(fiber.StatusOK)
@@ -81,9 +82,7 @@ func (h *UserHandler) GetUserAddresses(c fiber.Ctx) {
 	// @TODO: Filter by platform
 	addresses, err := h.userController.GetUserAddresses(c.Params("id"))
 	if err != nil {
-		utils.NewErrorResponse(
-			c, fiber.StatusInternalServerError, err.Error(),
-		)
+		_ = utils.NewServerErrorResponse(c, h.logger, err)
 		return
 	}
 	c.Status(fiber.StatusOK)
@@ -91,17 +90,63 @@ func (h *UserHandler) GetUserAddresses(c fiber.Ctx) {
 	_, _ = c.Write(jsonData)
 }
 
+type ManualDepositRequest struct {
+	Address   string `json:"address" validate:"required"`
+	ChainName string `json:"chainName" validate:"required"`
+	TxHash    string `json:"txHash" validate:"required"`
+}
+
 func (h *UserHandler) ManualDeposit(c fiber.Ctx) {
+	var request ManualDepositRequest
+	if err := c.Bind().JSON(&request); err != nil {
+		_ = utils.NewErrorResponse(
+			c, fiber.StatusBadRequest, err.Error(),
+		)
+		return
+	}
+	exists, err := h.userController.AddressAndChainNameExists(
+		request.Address, request.ChainName,
+	)
+	if err != nil {
+		_ = utils.NewServerErrorResponse(c, h.logger, err)
+		return
+	}
+	if !exists {
+		_ = utils.NewErrorResponse(
+			c, fiber.StatusBadRequest, "address or chain name not found",
+		)
+		return
+	}
+	h.logger.Info("address and chain name found")
+	id := uuid.New().String()
+	err = h.publisher.PublishDepositOperation(
+		c.Context(),
+		id,
+		request.ChainName,
+		request.TxHash,
+		request.Address,
+	)
+	if err != nil {
+		_ = utils.NewServerErrorResponse(c, h.logger, err)
+		return
+	}
 	c.Status(fiber.StatusOK)
-	_, _ = c.Write([]byte("ok"))
+	jsonData, _ := json.Marshal(map[string]string{
+		"message": "Deposit request received. " +
+			"If the tx is not finalized, it will be rejected by the system.",
+		"id": id,
+	})
+	_, _ = c.Write(jsonData)
 }
 
 func NewUserHandler(
 	usersService *users.UserService,
+	publisher *worker.Publisher,
 	logger *logger.Logger,
 ) *UserHandler {
 	return &UserHandler{
 		userController: usersService,
+		publisher:      publisher,
 		logger:         logger,
 	}
 }

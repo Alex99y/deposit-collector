@@ -19,7 +19,7 @@ func (r *SystemRepository) GetSupportedChains() ([]SupportedChain, error) {
 	var chains []SupportedChain
 
 	q := `
-SELECT network, chain_platform, evm_chain_id
+SELECT chain_name, chain_platform, evm_chain_id
 FROM supported_chains
 `
 
@@ -32,7 +32,7 @@ FROM supported_chains
 	for rows.Next() {
 		var chain SupportedChain
 		err := rows.Scan(
-			&chain.Network,
+			&chain.ChainName,
 			&chain.ChainPlatform,
 			&chain.EVMChainID,
 		)
@@ -54,13 +54,13 @@ func (r *SystemRepository) AddNewSupportedChain(
 ) error {
 	q := `
 INSERT INTO supported_chains (
-	network, chain_platform, evm_chain_id
+	chain_name, chain_platform, evm_chain_id
 ) VALUES ($1, $2, $3)
 `
 
 	_, err := r.db.Exec(
 		q,
-		strings.ToLower(chain.Network),
+		strings.ToLower(chain.ChainName),
 		strings.ToUpper(string(chain.ChainPlatform)),
 		chain.EVMChainID,
 	)
@@ -68,7 +68,7 @@ INSERT INTO supported_chains (
 		return nil
 	}
 	if _, ok := postgresql.UniqueConstraintViolation(err); ok {
-		return errors.New("network already exists")
+		return errors.New("chain already exists")
 	}
 	if err != nil {
 		return err
@@ -84,7 +84,7 @@ func (r *SystemRepository) AddNewTokenAddress(
 INSERT INTO token_addresses (
 	unit_name, unit_symbol, address, chain_id, decimals
 ) VALUES (
-	$1, $2, $3, (SELECT id FROM supported_chains WHERE network = $4), $5
+	$1, $2, $3, (SELECT id FROM supported_chains WHERE chain_name = $4), $5
 )
 `
 
@@ -93,7 +93,7 @@ INSERT INTO token_addresses (
 		tokenAddress.UnitName,
 		strings.ToUpper(tokenAddress.UnitSymbol),
 		strings.ToLower(tokenAddress.Address),
-		strings.ToLower(tokenAddress.Network),
+		strings.ToLower(tokenAddress.ChainName),
 		tokenAddress.Decimals,
 	)
 	if err == sql.ErrNoRows {
@@ -116,7 +116,7 @@ func (r *SystemRepository) GetTokenAddresses(
 
 	q := `
 SELECT ta.unit_name, ta.unit_symbol, ta.address, ta.decimals,
-sc.network, sc.chain_platform, sc.evm_chain_id
+sc.chain_name, sc.chain_platform, sc.evm_chain_id
 FROM token_addresses as ta
 INNER JOIN supported_chains as sc ON ta.chain_id = sc.id
 `
@@ -129,7 +129,7 @@ INNER JOIN supported_chains as sc ON ta.chain_id = sc.id
 	}
 
 	if filters.Chain != nil {
-		addCond("sc.network = $%d", *filters.Chain)
+		addCond("sc.chain_name = $%d", *filters.Chain)
 	}
 	if filters.Address != nil {
 		addCond("ta.address = $%d", *filters.Address)
@@ -170,7 +170,7 @@ INNER JOIN supported_chains as sc ON ta.chain_id = sc.id
 			&tokenAddress.UnitSymbol,
 			&tokenAddress.Address,
 			&tokenAddress.Decimals,
-			&chain.Network,
+			&chain.ChainName,
 			&chain.ChainPlatform,
 			&chain.EVMChainID,
 		); err != nil {
@@ -193,7 +193,7 @@ func (r *SystemRepository) GetTokenAddressByID(
 	var chain SupportedChain
 	q := `
 SELECT ta.unit_name, ta.unit_symbol, ta.address, ta.decimals,
-sc.network, sc.chain_platform, sc.evm_chain_id
+sc.chain_name, sc.chain_platform, sc.evm_chain_id
 FROM token_addresses as ta
 INNER JOIN supported_chains as sc ON ta.chain_id = sc.id
 WHERE ta.id = $1
@@ -204,7 +204,7 @@ WHERE ta.id = $1
 		&tokenAddress.UnitSymbol,
 		&tokenAddress.Address,
 		&tokenAddress.Decimals,
-		&chain.Network,
+		&chain.ChainName,
 		&chain.ChainPlatform,
 		&chain.EVMChainID,
 	)

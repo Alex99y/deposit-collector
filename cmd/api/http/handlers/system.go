@@ -6,6 +6,7 @@ import (
 	utils "deposit-collector/cmd/api/http/utils"
 	system "deposit-collector/internal/system"
 	logger "deposit-collector/pkg/logger"
+	commonUtils "deposit-collector/pkg/utils"
 
 	fiber "github.com/gofiber/fiber/v3"
 )
@@ -18,9 +19,7 @@ type SystemHandler struct {
 func (h *SystemHandler) GetSupportedChains(c fiber.Ctx) {
 	chains, err := h.systemService.GetSupportedChains()
 	if err != nil {
-		utils.NewErrorResponse(
-			c, fiber.StatusInternalServerError, "error getting supported chains",
-		)
+		_ = utils.NewServerErrorResponse(c, h.logger, err)
 		return
 	}
 	c.Status(fiber.StatusOK)
@@ -39,7 +38,13 @@ type GetSupportedTokensQuery struct {
 func (h *SystemHandler) GetSupportedTokens(c fiber.Ctx) {
 	query := new(GetSupportedTokensQuery)
 	if err := c.Bind().Query(query); err != nil {
-		utils.NewErrorResponse(
+		if commonUtils.ContainsAny(err.Error(), "user not found") {
+			_ = utils.NewErrorResponse(
+				c, fiber.StatusNotFound, "user not found",
+			)
+			return
+		}
+		_ = utils.NewErrorResponse(
 			c, fiber.StatusBadRequest, "invalid request body",
 		)
 		return
@@ -56,9 +61,7 @@ func (h *SystemHandler) GetSupportedTokens(c fiber.Ctx) {
 	)
 
 	if err != nil {
-		utils.NewErrorResponse(
-			c, fiber.StatusInternalServerError, err.Error(),
-		)
+		_ = utils.NewServerErrorResponse(c, h.logger, err)
 		return
 	}
 	c.Status(fiber.StatusOK)
@@ -67,7 +70,7 @@ func (h *SystemHandler) GetSupportedTokens(c fiber.Ctx) {
 }
 
 type AddNewSupportedChainRequest struct {
-	Network       string `json:"network" validate:"required"`
+	ChainName     string `json:"chainName" validate:"required"`
 	ChainPlatform string `json:"chainPlatform" validate:"required"`
 	EVMChainID    int    `json:"evmChainId" validate:"required,min=0"`
 }
@@ -75,27 +78,25 @@ type AddNewSupportedChainRequest struct {
 func (h *SystemHandler) AddNewSupportedChain(c fiber.Ctx) {
 	var request AddNewSupportedChainRequest
 	if err := c.Bind().JSON(&request); err != nil {
-		utils.NewErrorResponse(
+		_ = utils.NewErrorResponse(
 			c, fiber.StatusBadRequest, err.Error(),
 		)
 		return
 	}
 
 	if err := system.ValidateChainPlatform(request.ChainPlatform); err != nil {
-		utils.NewErrorResponse(
+		_ = utils.NewErrorResponse(
 			c, fiber.StatusBadRequest, "invalid chain platform",
 		)
 		return
 	}
 	err := h.systemService.AddNewSupportedChain(&system.NewSupportedChainRequest{
-		Network:       request.Network,
+		ChainName:     request.ChainName,
 		ChainPlatform: system.ChainPlatform(request.ChainPlatform),
 		EVMChainID:    request.EVMChainID,
 	})
 	if err != nil {
-		utils.NewErrorResponse(
-			c, fiber.StatusInternalServerError, err.Error(),
-		)
+		_ = utils.NewServerErrorResponse(c, h.logger, err)
 		return
 	}
 	c.Status(fiber.StatusOK)
@@ -107,14 +108,14 @@ type AddNewTokenAddressRequest struct {
 	UnitName   string `json:"unitName" validate:"required"`
 	UnitSymbol string `json:"unitSymbol" validate:"required"`
 	Address    string `json:"address" validate:"required"`
-	Network    string `json:"network" validate:"required"`
+	ChainName  string `json:"chainName" validate:"required"`
 	Decimals   int    `json:"decimals" validate:"required"`
 }
 
 func (h *SystemHandler) AddNewTokenAddress(c fiber.Ctx) {
 	var request AddNewTokenAddressRequest
 	if err := c.Bind().JSON(&request); err != nil {
-		utils.NewErrorResponse(
+		_ = utils.NewErrorResponse(
 			c, fiber.StatusBadRequest, err.Error(),
 		)
 		return
@@ -126,12 +127,10 @@ func (h *SystemHandler) AddNewTokenAddress(c fiber.Ctx) {
 			Address:    request.Address,
 			Decimals:   request.Decimals,
 		},
-		Network: request.Network,
+		ChainName: request.ChainName,
 	})
 	if err != nil {
-		utils.NewErrorResponse(
-			c, fiber.StatusInternalServerError, "error adding new token address",
-		)
+		_ = utils.NewServerErrorResponse(c, h.logger, err)
 		return
 	}
 	c.Status(fiber.StatusOK)

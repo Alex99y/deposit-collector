@@ -11,41 +11,78 @@ import (
 )
 
 type Queue struct {
-	rabbitmq *RabbitMQ
-	queue    amqp.Queue
+	rabbitmq *RabbitMQClient
+	channel  *amqp.Channel
+	queue    *amqp.Queue
 	logger   *logger.Logger
 }
 
+type ChannelArgs struct {
+	PrefetchCount int
+	PrefetchSize  int
+}
+
+type QueueArgs struct {
+	Name       string
+	Durable    bool
+	AutoDelete bool
+	Exclusive  bool
+	NoWait     bool
+	Args       map[string]any
+}
+
 func GetQueue(
-	rabbitmq *RabbitMQ,
-	name string,
+	rabbitmq *RabbitMQClient,
+	channelArgs ChannelArgs,
+	queueArgs QueueArgs,
 	logger *logger.Logger,
 ) (*Queue, error) {
-	queue, err := rabbitmq.ch.QueueDeclare(
-		name,
-		true,  // durable
-		false, // auto-delete
-		false, // exclusive
-		false, // no-wait
-		nil,   // args
+	channel, err := rabbitmq.CreateChannel(
+		channelArgs.PrefetchCount,
+		channelArgs.PrefetchSize,
 	)
 	if err != nil {
 		return nil, err
 	}
-	return &Queue{rabbitmq: rabbitmq, queue: queue, logger: logger}, nil
+	queue, err := channel.QueueDeclare(
+		queueArgs.Name,
+		queueArgs.Durable,
+		queueArgs.AutoDelete,
+		queueArgs.Exclusive,
+		queueArgs.NoWait,
+		queueArgs.Args,
+	)
+	if err != nil {
+		return nil, err
+	}
+	return &Queue{
+		rabbitmq: rabbitmq,
+		channel:  channel,
+		queue:    &queue,
+		logger:   logger,
+	}, nil
+}
+
+func (q *Queue) Close() error {
+	return q.channel.Close()
 }
 
 func (q *Queue) Name() string {
 	return q.queue.Name
 }
 
-func (q *Queue) Publish(ctx context.Context, message []byte) error {
-	return q.rabbitmq.ch.PublishWithContext(
+func (q *Queue) Publish(
+	ctx context.Context,
+	message []byte,
+	mandatory bool,
+	immediate bool,
+) error {
+	return q.channel.PublishWithContext(
 		ctx,
 		"",
 		q.queue.Name,
-		false, // mandatory
-		false, // immediate
+		mandatory,
+		immediate,
 		amqp.Publishing{
 			ContentType: "application/json",
 			Body:        message,
@@ -111,7 +148,7 @@ func (q *Queue) handleDelivery(
 }
 
 func (q *Queue) Consume(ctx context.Context, callback ConsumeCallback) error {
-	deliveries, err := q.rabbitmq.ch.ConsumeWithContext(
+	deliveries, err := q.channel.ConsumeWithContext(
 		ctx,
 		q.queue.Name,
 		"",

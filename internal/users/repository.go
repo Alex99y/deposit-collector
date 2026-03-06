@@ -200,6 +200,25 @@ RETURNING id
 	return addressString, nil
 }
 
+func (r *UsersRepository) AddressAndChainNameExists(
+	address string,
+	chainName string,
+) (bool, error) {
+	var exists bool
+	var chainExists bool
+	err := r.db.QueryRowContext(
+		r.ctx,
+		"SELECT EXISTS(SELECT 1 FROM user_addresses WHERE address = $1),"+
+			"EXISTS(SELECT 1 FROM supported_chains WHERE chain_name = $2)",
+		address,
+		chainName,
+	).Scan(&exists, &chainExists)
+	if err != nil {
+		return false, err
+	}
+	return exists && chainExists, nil
+}
+
 func NewUsersRepository(
 	ctx context.Context,
 	db *sql.DB,

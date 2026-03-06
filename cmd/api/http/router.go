@@ -52,4 +52,12 @@ func RegisterRoutes(app *fiber.App, dependencies RouterDependencies) {
 		validations.ValidateContentType(validations.ContentTypeJSON),
 		dependencies.SystemHandler.AddNewTokenAddress,
 	)
+
+	// @TODO: Move this endpoint to another group.
+	// Probably to the operations group.
+	apiV1.Post(
+		"/deposit",
+		validations.ValidateContentType(validations.ContentTypeJSON),
+		dependencies.UsersHandler.ManualDeposit,
+	)
 }

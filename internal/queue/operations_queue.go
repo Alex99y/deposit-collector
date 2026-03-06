@@ -6,29 +6,7 @@ import (
 
 	logger "deposit-collector/pkg/logger"
 	rabbitmq "deposit-collector/pkg/rabbitmq"
-	utils "deposit-collector/pkg/utils"
 )
-
-type QueueName string
-type OperationType string
-
-const (
-	OperationTypeWithdraw OperationType = "withdraw-operation"
-	OperationTypeDeposit  OperationType = "deposit-operation"
-)
-
-const (
-	OperationsQueue QueueName = "operations-queue"
-)
-
-type Operation struct {
-	Message string
-}
-
-type OperationEvent struct {
-	OperationType OperationType
-	OperationData Operation
-}
 
 type OperationConsumerArgs struct {
 	rabbitmq.ConsumeArgs
@@ -52,12 +30,14 @@ type OperationQueue struct {
 func (q *OperationQueue) PublishOperationEvent(
 	ctx context.Context,
 	event OperationEvent,
+	mandatory bool,
+	immediate bool,
 ) error {
 	message, err := json.Marshal(event)
 	if err != nil {
 		return err
 	}
-	return q.queue.Publish(ctx, message)
+	return q.queue.Publish(ctx, message, mandatory, immediate)
 }
 
 type ConsumeCallback func(*OperationConsumerArgs)
@@ -74,15 +54,13 @@ func (q *OperationQueue) Consume(
 	})
 }
 
+func (q *OperationQueue) Close() error {
+	return q.queue.Close()
+}
+
 func NewOperationsQueue(
-	rmq *rabbitmq.RabbitMQ,
+	queue *rabbitmq.Queue,
 	logger *logger.Logger,
 ) *OperationQueue {
-	operationsQueue, err := rabbitmq.GetQueue(
-		rmq, string(OperationsQueue), logger,
-	)
-	if err != nil {
-		utils.FailOnError(logger, err, "Error creating operations queue")
-	}
-	return &OperationQueue{queue: operationsQueue, logger: logger}
+	return &OperationQueue{queue: queue, logger: logger}
 }

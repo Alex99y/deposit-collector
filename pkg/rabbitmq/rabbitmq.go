@@ -1,33 +1,44 @@
 package rabbitmq
 
 import (
+	logger "deposit-collector/pkg/logger"
+
 	amqp "github.com/rabbitmq/amqp091-go"
 )
 
-type RabbitMQ struct {
-	conn *amqp.Connection
-	ch   *amqp.Channel
+type RabbitMQClient struct {
+	conn   *amqp.Connection
+	url    string
+	logger *logger.Logger
 }
 
-func NewRabbitMQ(url string) (*RabbitMQ, error) {
+func (r *RabbitMQClient) Reconnect() error {
+	r.conn.Close()
+	conn, err := amqp.Dial(r.url)
+	if err != nil {
+		return err
+	}
+	r.conn = conn
+	return nil
+}
+
+func (r *RabbitMQClient) Close() error {
+	return r.conn.Close()
+}
+
+func (s *RabbitMQClient) CreateChannel(prefetchCount int, prefetchSize int) (*amqp.Channel, error) {
+	channel, err := s.conn.Channel()
+	if err != nil {
+		return nil, err
+	}
+	return channel, nil
+}
+
+func NewRabbitMQ(url string) (*RabbitMQClient, error) {
 	conn, err := amqp.Dial(url)
 	if err != nil {
 		return nil, err
 	}
-	ch, err := conn.Channel()
-	if err != nil {
-		conn.Close()
-		return nil, err
-	}
 
-	return &RabbitMQ{conn: conn, ch: ch}, nil
-}
-
-func (r *RabbitMQ) Close() {
-	_ = r.ch.Close()
-	_ = r.conn.Close()
-}
-
-func (r *RabbitMQ) SetQos(prefetchCount int, prefetchSize int, global bool) {
-	_ = r.ch.Qos(prefetchCount, prefetchSize, global)
+	return &RabbitMQClient{conn: conn, url: url}, nil
 }

@@ -6,11 +6,12 @@ import (
 	os "os"
 	signal "os/signal"
 	syscall "syscall"
-	time "time"
+	"time"
 
 	config "deposit-collector/cmd/api/config"
 	http "deposit-collector/cmd/api/http"
 	handlers "deposit-collector/cmd/api/http/handlers"
+	worker "deposit-collector/cmd/api/worker"
 	system "deposit-collector/internal/system"
 	users "deposit-collector/internal/users"
 	walletservices "deposit-collector/internal/wallet_services"
@@ -24,10 +25,9 @@ func main() {
 
 	apiConfig := config.GetAPIConfig(logger)
 
-	serviceCtx, cancelServiceCtx := context.WithCancel(context.Background())
-	defer cancelServiceCtx()
+	appCtx, appCancel := context.WithCancel(context.Background())
+	defer appCancel()
 
-	// Common services
 	db, err := postgresql.SetupPostgresConnection(apiConfig.PostgresURL)
 	if err != nil {
 		utils.FailOnError(logger, err, "error setting up postgres connection")
@@ -38,17 +38,22 @@ func main() {
 		apiConfig.WalletSeed, logger,
 	)
 
-	// Setup users services
-	usersRepository := users.NewUsersRepository(serviceCtx, db)
-	usersService := users.NewUserService(usersRepository, walletService, logger)
-	usersHandler := handlers.NewUserHandler(usersService, logger)
+	publisher := worker.NewPublisher(appCtx, apiConfig.RabbitMQURL, logger)
+	err = publisher.Start(appCtx)
+	if err != nil {
+		utils.FailOnError(logger, err, "Error starting publisher")
+	}
+	logger.Info("publisher started")
+	defer publisher.Close()
 
-	// Setup system services
+	usersRepository := users.NewUsersRepository(appCtx, db)
+	usersService := users.NewUserService(usersRepository, walletService, logger)
+	usersHandler := handlers.NewUserHandler(usersService, publisher, logger)
+
 	systemRepository := system.NewSystemRepository(db)
 	systemService := system.NewSystemService(systemRepository, logger)
 	systemHandler := handlers.NewSystemHandler(systemService, logger)
 
-	// Setup server dependencies
 	serverDependencies := http.ServerDependencies{
 		Logger:        logger,
 		UsersHandler:  usersHandler,
@@ -57,44 +62,40 @@ func main() {
 
 	server := http.NewServer(serverDependencies)
 
+	serverErrCh := make(chan error, 1)
+
 	go func() {
 		logger.Info(
 			fmt.Sprintf("starting server on %s:%d", apiConfig.Host, apiConfig.Port),
 		)
-		err := server.Start(apiConfig.Port, apiConfig.Host)
-		if err != nil {
-			utils.FailOnError(logger, err, "error starting server")
-		}
+		serverErrCh <- server.Start(apiConfig.Port, apiConfig.Host)
 	}()
 
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
+	defer signal.Stop(quit)
 
-	<-quit
-	logger.Info("shutdown server ...")
+	select {
+	case sig := <-quit:
+		logger.Info(fmt.Sprintf("shutdown server ... signal=%s", sig))
+	case err := <-serverErrCh:
+		if err != nil {
+			utils.FailOnError(logger, err, "error starting server")
+		}
+		return
+	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
-	defer cancel()
+	shutdownCtx, shutdownCancel := context.WithTimeout(
+		context.Background(), 20*time.Second,
+	)
+	defer shutdownCancel()
 
-	err = server.Shutdown(ctx)
+	err = server.Shutdown(shutdownCtx)
 	if err != nil {
 		utils.FailOnError(logger, err, "error shutting down server")
 	}
 
-	<-ctx.Done()
-
-	// rmq := queue.GetQueueConnection(apiConfig.RabbitMQURL, logger)
-	// defer rmq.Close()
-	// operationsQueue := queue.NewOperationsQueue(rmq, logger)
-	// err := operationsQueue.PublishOperationEvent(ctx, queue.OperationEvent{
-	// 	OperationType: queue.OperationTypeDeposit,
-	// 	OperationData: queue.Operation{
-	// 		Message: "Hello World Amigo!",
-	// 	},
-	// })
-	// if err != nil {
-	// 	utils.FailOnError(logger, err, "Error publishing to operations queue")
-	// }
+	publisher.Close()
 
 	logger.Info("server exiting")
 }

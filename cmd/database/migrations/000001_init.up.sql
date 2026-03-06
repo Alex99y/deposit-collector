@@ -3,18 +3,21 @@ CREATE TYPE chain_platform AS ENUM ('EVM', 'BTC', 'SOL');
 CREATE TYPE operation_type AS ENUM ('deposit', 'withdraw');
 
 
--- Supported chains table stores the networks that will be used in the system
--- Example: Network is Ethereum. BIP44 ID is 60. Chain platform is EVM.
+-- Supported chains table stores the chains that will be used in the system
+-- Example: Chain name is Ethereum. BIP44 ID is 60. Chain platform is EVM.
 
 CREATE TABLE supported_chains (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    network VARCHAR(100) UNIQUE NOT NULL,
+    chain_name VARCHAR(100) NOT NULL,
     chain_platform chain_platform NOT NULL,
-    -- EVM chain ID is the ID of the chain in the EVM network
+    -- EVM chain ID is the ID of the chain in the EVM chain
     -- Example: 1 for Ethereum mainnet
     -- @TODO: This is only for EVM chains. This table should be generic for all chains and
     -- not have columns for specific chains.
-    evm_chain_id INTEGER UNIQUE
+    evm_chain_id INTEGER,
+
+    CONSTRAINT supported_chains_chain_name_uk UNIQUE (chain_name),
+    CONSTRAINT supported_chains_evm_chain_id_uk UNIQUE (evm_chain_id)
 );
 
 
