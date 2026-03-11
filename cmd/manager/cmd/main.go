@@ -1,28 +1,63 @@
 package main
 
+import (
+	context "context"
+	fmt "fmt"
+	os "os"
+	signal "os/signal"
+	runtime "runtime"
+	syscall "syscall"
+
+	config "deposit-collector/cmd/manager/config"
+	worker "deposit-collector/cmd/manager/worker"
+	logger "deposit-collector/pkg/logger"
+	rabbitmq "deposit-collector/pkg/rabbitmq"
+	utils "deposit-collector/pkg/utils"
+)
+
 func main() {
-	// ctx, cancel := context.WithCancel(context.Background())
-	// defer cancel()
-	// logger := logger.NewLogger()
-	// managerConfig := config.GetManagerConfig(logger)
-	// rmq := queue.GetQueueConnection(managerConfig.RabbitMQURL, logger)
-	// defer rmq.Close()
-	// rmq.SetQos(1, 0, false)
-	// operationsQueue := queue.NewOperationsQueue(rmq, logger)
-	// logger.Info("Waiting for messages from operations queue")
-	// forever := make(chan struct{})
-	// defer close(forever)
-	// err := operationsQueue.Consume(ctx, func(args *queue.OperationConsumerArgs) {
-	// 	if ctx.Err() != nil {
-	// 		logger.Error("Context cancelled, stopping consume")
-	// 		_ = args.Nack()
-	// 		return
-	// 	}
-	// 	logger.Info(args.Message().OperationData.Message)
-	// 	_ = args.Ack()
-	// })
-	// if err != nil {
-	// 	utils.FailOnError(logger, err, "Error consuming operations queue")
-	// }
-	// <-forever
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	logger := logger.NewLogger()
+	managerConfig := config.GetManagerConfig(logger)
+
+	rmq, err := rabbitmq.NewRabbitMQ(managerConfig.RabbitMQURL)
+	if err != nil {
+		utils.FailOnError(logger, err, "Error creating RabbitMQ client")
+	}
+
+	var maxWorkers int
+	totalCpu := runtime.NumCPU()
+	if managerConfig.AllowMultiThreading {
+		if managerConfig.MaxWorkers > totalCpu {
+			maxWorkers = totalCpu
+		} else {
+			maxWorkers = managerConfig.MaxWorkers
+		}
+	} else {
+		maxWorkers = 1
+	}
+
+	logger.Info(fmt.Sprintf("starting manager with workers=%d", maxWorkers))
+
+	workers := make([]*worker.Worker, maxWorkers)
+	for i := 0; i < maxWorkers; i++ {
+		workers[i] = worker.NewWorker(rmq, i, logger)
+	}
+
+	for _, worker := range workers {
+		worker.Start(ctx)
+		defer worker.Stop(ctx)
+	}
+
+	quit := make(chan os.Signal, 1)
+	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
+	defer signal.Stop(quit)
+
+	select {
+	case sig := <-quit:
+		logger.Info(fmt.Sprintf("shutdown manager ... signal=%s", sig))
+	case <-ctx.Done():
+		logger.Info("manager exiting")
+	}
 }

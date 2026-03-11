@@ -117,7 +117,6 @@ func (h *UserHandler) ManualDeposit(c fiber.Ctx) {
 		)
 		return
 	}
-	h.logger.Info("address and chain name found")
 	id := uuid.New().String()
 	err = h.publisher.PublishDepositOperation(
 		c.Context(),

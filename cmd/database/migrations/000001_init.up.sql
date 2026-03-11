@@ -110,6 +110,25 @@ CREATE TABLE operations (
     amount BIGINT NOT NULL,
     type operation_type NOT NULL,
     created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+    tx_hash VARCHAR(100) NOT NULL
 );
 
 CREATE UNIQUE INDEX idx_operations_user_created ON operations (user_id, created_at DESC);
+CREATE UNIQUE INDEX idx_operations_tx_hash ON operations (tx_hash);
+
+
+-- Pending deposit operations table stores the references to the addresses that hold funds waiting to be transferred to
+-- the master address. The master address is the protected, multisig, cold wallet address owned by the institution.
+-- The idea is to query 
+CREATE TABLE pending_deposit_operations (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    address_id UUID NOT NULL REFERENCES user_addresses(id),
+    token_address_id UUID NOT NULL REFERENCES token_addresses(id),
+    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    processed_at TIMESTAMPTZ NULL,
+
+    CONSTRAINT pending_deposit_operations_address_id_token_address_id_uk UNIQUE (address_id, token_address_id),
+);
+
+CREATE INDEX idx_pending_deposit_operations_token_address_id ON pending_deposit_operations (token_address_id);

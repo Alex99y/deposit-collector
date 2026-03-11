@@ -1,0 +1,23 @@
+{
+    "rpc": {
+        "EVM": {
+            "ethereum": {
+                "url": "http://localhost:8545",
+                "chain_id": 1,
+                "min_confirmations": 15
+            }
+        },
+        "BTC": {
+            "bitcoin": {
+                "url": "http://localhost:8332",
+                "min_confirmations": 2
+            }
+        },
+        "SOL": {
+            "solana": {
+                "url": "http://localhost:8899",
+                "min_confirmations": 1
+            }
+        }
+    }
+}
