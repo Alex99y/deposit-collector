@@ -1,0 +1,396 @@
+{
+    "annotations": {
+      "list": [
+        {
+          "builtIn": 1,
+          "datasource": {
+            "type": "grafana",
+            "uid": "-- Grafana --"
+          },
+          "enable": true,
+          "hide": true,
+          "iconColor": "rgba(0, 211, 255, 1)",
+          "name": "Annotations & Alerts",
+          "type": "dashboard"
+        }
+      ]
+    },
+    "editable": true,
+    "fiscalYearStartMonth": 0,
+    "graphTooltip": 0,
+    "id": null,
+    "links": [],
+    "panels": [
+      {
+        "type": "stat",
+        "title": "Mensajes listos (total)",
+        "gridPos": { "h": 4, "w": 6, "x": 0, "y": 0 },
+        "datasource": { "type": "prometheus", "uid": "prometheus" },
+        "targets": [
+          {
+            "expr": "sum(rabbitmq_detailed_queue_messages_ready)",
+            "refId": "A"
+          }
+        ],
+        "options": {
+          "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+          "orientation": "auto",
+          "textMode": "auto",
+          "colorMode": "value",
+          "graphMode": "area",
+          "justifyMode": "auto"
+        }
+      },
+      {
+        "type": "stat",
+        "title": "Mensajes unacked (total)",
+        "gridPos": { "h": 4, "w": 6, "x": 6, "y": 0 },
+        "datasource": { "type": "prometheus", "uid": "prometheus" },
+        "targets": [
+          {
+            "expr": "sum(rabbitmq_detailed_queue_messages_unacked)",
+            "refId": "A"
+          }
+        ],
+        "options": {
+          "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+          "orientation": "auto",
+          "textMode": "auto",
+          "colorMode": "value",
+          "graphMode": "area",
+          "justifyMode": "auto"
+        }
+      },
+      {
+        "type": "stat",
+        "title": "Consumers (total)",
+        "gridPos": { "h": 4, "w": 6, "x": 12, "y": 0 },
+        "datasource": { "type": "prometheus", "uid": "prometheus" },
+        "targets": [
+          {
+            "expr": "sum(rabbitmq_detailed_queue_consumers)",
+            "refId": "A"
+          }
+        ],
+        "options": {
+          "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+          "orientation": "auto",
+          "textMode": "auto",
+          "colorMode": "value",
+          "graphMode": "area",
+          "justifyMode": "auto"
+        }
+      },
+      {
+        "type": "stat",
+        "title": "Memoria broker",
+        "gridPos": { "h": 4, "w": 6, "x": 18, "y": 0 },
+        "datasource": { "type": "prometheus", "uid": "prometheus" },
+        "targets": [
+          {
+            "expr": "sum(rabbitmq_detailed_process_resident_memory_bytes)",
+            "refId": "A"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "bytes"
+          },
+          "overrides": []
+        },
+        "options": {
+          "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+          "orientation": "auto",
+          "textMode": "auto",
+          "colorMode": "value",
+          "graphMode": "area",
+          "justifyMode": "auto"
+        }
+      },
+      {
+        "type": "timeseries",
+        "title": "Backlog por cola",
+        "gridPos": { "h": 8, "w": 12, "x": 0, "y": 4 },
+        "datasource": { "type": "prometheus", "uid": "prometheus" },
+        "targets": [
+          {
+            "expr": "rabbitmq_detailed_queue_messages{queue=~\".+\"}",
+            "legendFormat": "{{queue}}",
+            "refId": "A"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "short"
+          },
+          "overrides": []
+        },
+        "options": {
+          "legend": { "displayMode": "list", "placement": "bottom" },
+          "tooltip": { "mode": "multi", "sort": "desc" }
+        }
+      },
+      {
+        "type": "timeseries",
+        "title": "Ready vs Unacked",
+        "gridPos": { "h": 8, "w": 12, "x": 12, "y": 4 },
+        "datasource": { "type": "prometheus", "uid": "prometheus" },
+        "targets": [
+          {
+            "expr": "sum(rabbitmq_detailed_queue_messages_ready)",
+            "legendFormat": "ready",
+            "refId": "A"
+          },
+          {
+            "expr": "sum(rabbitmq_detailed_queue_messages_unacked)",
+            "legendFormat": "unacked",
+            "refId": "B"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "short"
+          },
+          "overrides": []
+        },
+        "options": {
+          "legend": { "displayMode": "list", "placement": "bottom" },
+          "tooltip": { "mode": "multi", "sort": "desc" }
+        }
+      },
+      {
+        "type": "timeseries",
+        "title": "Ack rate por cola",
+        "gridPos": { "h": 8, "w": 12, "x": 0, "y": 12 },
+        "datasource": { "type": "prometheus", "uid": "prometheus" },
+        "targets": [
+          {
+            "expr": "sum by (queue) (rate(rabbitmq_detailed_queue_messages_acked_total[5m]))",
+            "legendFormat": "{{queue}}",
+            "refId": "A"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "ops"
+          },
+          "overrides": []
+        },
+        "options": {
+          "legend": { "displayMode": "list", "placement": "bottom" },
+          "tooltip": { "mode": "multi", "sort": "desc" }
+        }
+      },
+      {
+        "type": "timeseries",
+        "title": "Redeliveries por cola",
+        "gridPos": { "h": 8, "w": 12, "x": 12, "y": 12 },
+        "datasource": { "type": "prometheus", "uid": "prometheus" },
+        "targets": [
+          {
+            "expr": "sum by (queue) (rate(rabbitmq_detailed_queue_messages_redelivered_total[5m]))",
+            "legendFormat": "{{queue}}",
+            "refId": "A"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "ops"
+          },
+          "overrides": []
+        },
+        "options": {
+          "legend": { "displayMode": "list", "placement": "bottom" },
+          "tooltip": { "mode": "multi", "sort": "desc" }
+        }
+      },
+      {
+        "type": "timeseries",
+        "title": "Consumers por cola",
+        "gridPos": { "h": 8, "w": 12, "x": 0, "y": 20 },
+        "datasource": { "type": "prometheus", "uid": "prometheus" },
+        "targets": [
+          {
+            "expr": "rabbitmq_detailed_queue_consumers{queue=~\".+\"}",
+            "legendFormat": "{{queue}}",
+            "refId": "A"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "short"
+          },
+          "overrides": []
+        },
+        "options": {
+          "legend": { "displayMode": "list", "placement": "bottom" },
+          "tooltip": { "mode": "multi", "sort": "desc" }
+        }
+      },
+      {
+        "type": "timeseries",
+        "title": "Consumer capacity por cola",
+        "gridPos": { "h": 8, "w": 12, "x": 12, "y": 20 },
+        "datasource": { "type": "prometheus", "uid": "prometheus" },
+        "targets": [
+          {
+            "expr": "rabbitmq_detailed_queue_consumer_capacity{queue=~\".+\"}",
+            "legendFormat": "{{queue}}",
+            "refId": "A"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "percentunit",
+            "min": 0,
+            "max": 1
+          },
+          "overrides": []
+        },
+        "options": {
+          "legend": { "displayMode": "list", "placement": "bottom" },
+          "tooltip": { "mode": "multi", "sort": "desc" }
+        }
+      },
+      {
+        "type": "timeseries",
+        "title": "Disco disponible",
+        "gridPos": { "h": 8, "w": 8, "x": 0, "y": 28 },
+        "datasource": { "type": "prometheus", "uid": "prometheus" },
+        "targets": [
+          {
+            "expr": "sum(rabbitmq_detailed_disk_space_available_bytes)",
+            "legendFormat": "disk available",
+            "refId": "A"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "bytes"
+          },
+          "overrides": []
+        },
+        "options": {
+          "legend": { "displayMode": "list", "placement": "bottom" },
+          "tooltip": { "mode": "multi", "sort": "desc" }
+        }
+      },
+      {
+        "type": "timeseries",
+        "title": "Open FDs",
+        "gridPos": { "h": 8, "w": 8, "x": 8, "y": 28 },
+        "datasource": { "type": "prometheus", "uid": "prometheus" },
+        "targets": [
+          {
+            "expr": "sum(rabbitmq_detailed_process_open_fds)",
+            "legendFormat": "open fds",
+            "refId": "A"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "short"
+          },
+          "overrides": []
+        },
+        "options": {
+          "legend": { "displayMode": "list", "placement": "bottom" },
+          "tooltip": { "mode": "multi", "sort": "desc" }
+        }
+      },
+      {
+        "type": "timeseries",
+        "title": "Connection churn",
+        "gridPos": { "h": 8, "w": 8, "x": 16, "y": 28 },
+        "datasource": { "type": "prometheus", "uid": "prometheus" },
+        "targets": [
+          {
+            "expr": "rate(rabbitmq_detailed_connections_opened_total[5m])",
+            "legendFormat": "opened/s",
+            "refId": "A"
+          },
+          {
+            "expr": "rate(rabbitmq_detailed_connections_closed_total[5m])",
+            "legendFormat": "closed/s",
+            "refId": "B"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "ops"
+          },
+          "overrides": []
+        },
+        "options": {
+          "legend": { "displayMode": "list", "placement": "bottom" },
+          "tooltip": { "mode": "multi", "sort": "desc" }
+        }
+      },
+      {
+        "type": "table",
+        "title": "Estado por cola",
+        "gridPos": { "h": 10, "w": 24, "x": 0, "y": 36 },
+        "datasource": { "type": "prometheus", "uid": "prometheus" },
+        "targets": [
+          {
+            "expr": "rabbitmq_detailed_queue_messages",
+            "format": "table",
+            "instant": true,
+            "refId": "A"
+          },
+          {
+            "expr": "rabbitmq_detailed_queue_messages_ready",
+            "format": "table",
+            "instant": true,
+            "refId": "B"
+          },
+          {
+            "expr": "rabbitmq_detailed_queue_messages_unacked",
+            "format": "table",
+            "instant": true,
+            "refId": "C"
+          },
+          {
+            "expr": "rabbitmq_detailed_queue_consumers",
+            "format": "table",
+            "instant": true,
+            "refId": "D"
+          },
+          {
+            "expr": "rabbitmq_detailed_queue_consumer_capacity",
+            "format": "table",
+            "instant": true,
+            "refId": "E"
+          }
+        ],
+        "options": {
+          "showHeader": true
+        },
+        "transformations": [
+          {
+            "id": "seriesToColumns",
+            "options": {
+              "byField": "queue"
+            }
+          }
+        ]
+      }
+    ],
+    "refresh": "30s",
+    "schemaVersion": 39,
+    "style": "dark",
+    "tags": ["rabbitmq", "prometheus"],
+    "templating": {
+      "list": []
+    },
+    "time": {
+      "from": "now-6h",
+      "to": "now"
+    },
+    "timepicker": {},
+    "timezone": "",
+    "title": "RabbitMQ Overview",
+    "uid": "rabbitmq-overview-local",
+    "version": 1,
+    "weekStart": ""
+}

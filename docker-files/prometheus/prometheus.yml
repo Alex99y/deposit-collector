@@ -1,0 +1,29 @@
+global:
+  scrape_interval: 30s
+  evaluation_interval: 30s
+
+scrape_configs:
+  - job_name: rabbitmq
+    metrics_path: /metrics
+    basic_auth:
+      username: admin
+      password: admin
+    static_configs:
+      - targets: ["rabbitmq:15692"]
+
+  - job_name: rabbitmq_detailed
+    metrics_path: /metrics/detailed
+    params:
+      family:
+        - queue_coarse_metrics
+        - queue_consumer_count
+        - queue_delivery_metrics
+        - queue_metrics
+        - node_coarse_metrics
+        - node_metrics
+        - connection_churn_metrics
+    basic_auth:
+      username: admin
+      password: admin
+    static_configs:
+      - targets: ["rabbitmq:15692"]
