@@ -1,5 +1,7 @@
 package queue
 
+import "github.com/google/uuid"
+
 type QueueName string
 type OperationType string
 
@@ -13,19 +15,20 @@ const (
 )
 
 type DepositOperationEvent struct {
-	TargetChainName string
-	DepositTxHash   string
-	TargetAddress   string
+	UserDbID          uuid.UUID
+	TargetAddressDbId uuid.UUID
+	TargetChainName   string
+	DepositTxHash     string
 }
 
 type WithdrawOperationEvent struct {
-	SourceChainName string
-	WithdrawTxHash  string
-	SourceAddress   string
+	UserDbID          uuid.UUID
+	SourceChainName   string
+	SourceAddressDbId uuid.UUID
 }
 
 type OperationEvent struct {
-	Id            string
+	RequestId     uuid.UUID
 	OperationType OperationType
 	OperationData interface{}
 }

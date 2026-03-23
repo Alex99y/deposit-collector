@@ -145,7 +145,9 @@ func (r *UsersRepository) StoreAddress(
 	if err != nil {
 		return "", err
 	}
-	defer tx.Rollback()
+	defer func() {
+		_ = tx.Rollback()
+	}()
 
 	var userID uuid.UUID
 	var userAccountID uint32
@@ -176,7 +178,9 @@ WHERE user_id = $1 AND chain = $2
 		userAccountID, sequenceNumber,
 	)
 	if err != nil {
-		return "", utils.NewError("error getting address from sequence number: " + err.Error())
+		return "", utils.NewError(
+			"error getting address from sequence number: " + err.Error(),
+		)
 	}
 
 	var addressID uuid.UUID
@@ -200,23 +204,20 @@ RETURNING id
 	return addressString, nil
 }
 
-func (r *UsersRepository) AddressAndChainNameExists(
+func (r *UsersRepository) FindUserIDAndAddressIDByAddress(
 	address string,
-	chainName string,
-) (bool, error) {
-	var exists bool
-	var chainExists bool
+) (uuid.UUID, uuid.UUID, error) {
+	var userDbId uuid.UUID
+	var addressDbId uuid.UUID
 	err := r.db.QueryRowContext(
 		r.ctx,
-		"SELECT EXISTS(SELECT 1 FROM user_addresses WHERE address = $1),"+
-			"EXISTS(SELECT 1 FROM supported_chains WHERE chain_name = $2)",
+		"SELECT id, user_id FROM user_addresses WHERE address = $1",
 		address,
-		chainName,
-	).Scan(&exists, &chainExists)
+	).Scan(&addressDbId, &userDbId)
 	if err != nil {
-		return false, err
+		return uuid.UUID{}, uuid.UUID{}, err
 	}
-	return exists && chainExists, nil
+	return userDbId, addressDbId, nil
 }
 
 func NewUsersRepository(

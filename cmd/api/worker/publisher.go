@@ -4,13 +4,15 @@ import (
 	context "context"
 	errors "errors"
 	fmt "fmt"
-	"sync"
+	sync "sync"
 	time "time"
 
 	queue "deposit-collector/internal/queue"
 	logger "deposit-collector/pkg/logger"
 	rabbitmq "deposit-collector/pkg/rabbitmq"
 	utils "deposit-collector/pkg/utils"
+
+	uuid "github.com/google/uuid"
 )
 
 type publishReq struct {
@@ -120,21 +122,23 @@ func (p *Publisher) run() {
 
 func (p *Publisher) PublishDepositOperation(
 	ctx context.Context,
-	id string,
+	requestId uuid.UUID,
+	userDbId uuid.UUID,
 	targetChainName string,
 	despositTxHash string,
-	targetAddress string,
+	targetAddressDbId uuid.UUID,
 ) error {
 	req := publishReq{
 		ctx:        ctx,
 		routingKey: "deposit.operation",
 		body: queue.OperationEvent{
-			Id:            id,
+			RequestId:     requestId,
 			OperationType: queue.OperationTypeDeposit,
 			OperationData: queue.DepositOperationEvent{
-				TargetChainName: targetChainName,
-				DepositTxHash:   despositTxHash,
-				TargetAddress:   targetAddress,
+				UserDbID:          userDbId,
+				TargetChainName:   targetChainName,
+				DepositTxHash:     despositTxHash,
+				TargetAddressDbId: targetAddressDbId,
 			},
 		},
 		mandatory:  false,

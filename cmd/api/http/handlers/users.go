@@ -5,6 +5,7 @@ import (
 
 	utils "deposit-collector/cmd/api/http/utils"
 	worker "deposit-collector/cmd/api/worker"
+	memorycache "deposit-collector/internal/memory_cache"
 	system "deposit-collector/internal/system"
 	users "deposit-collector/internal/users"
 	logger "deposit-collector/pkg/logger"
@@ -15,6 +16,7 @@ import (
 
 type UserHandler struct {
 	userController *users.UserService
+	chainCache     *memorycache.ChainsCache
 	publisher      *worker.Publisher
 	logger         *logger.Logger
 }
@@ -104,26 +106,37 @@ func (h *UserHandler) ManualDeposit(c fiber.Ctx) {
 		)
 		return
 	}
-	exists, err := h.userController.AddressAndChainNameExists(
-		request.Address, request.ChainName,
+	supportedChain := h.chainCache.GetSupportedChainsByChainName(request.ChainName)
+	if supportedChain == nil {
+		_ = utils.NewErrorResponse(
+			c, fiber.StatusBadRequest, "chain not found",
+		)
+		return
+	}
+	userId, addressDbId, err := h.userController.FindUserIdsByAddress(
+		request.Address,
 	)
+	// Invalid request body
 	if err != nil {
 		_ = utils.NewServerErrorResponse(c, h.logger, err)
 		return
 	}
-	if !exists {
+	// Address or chain name not found
+	if userId == uuid.Nil || addressDbId == uuid.Nil {
 		_ = utils.NewErrorResponse(
-			c, fiber.StatusBadRequest, "address or chain name not found",
+			c, fiber.StatusBadRequest, "address not found",
 		)
 		return
 	}
-	id := uuid.New().String()
+	requestId := uuid.New()
+	// Publish the deposit operation
 	err = h.publisher.PublishDepositOperation(
 		c.Context(),
-		id,
+		requestId,
+		userId,
 		request.ChainName,
 		request.TxHash,
-		request.Address,
+		addressDbId,
 	)
 	if err != nil {
 		_ = utils.NewServerErrorResponse(c, h.logger, err)
@@ -133,13 +146,14 @@ func (h *UserHandler) ManualDeposit(c fiber.Ctx) {
 	jsonData, _ := json.Marshal(map[string]string{
 		"message": "Deposit request received. " +
 			"If the tx is not finalized, it will be rejected by the system.",
-		"id": id,
+		"id": requestId.String(),
 	})
 	_, _ = c.Write(jsonData)
 }
 
 func NewUserHandler(
 	usersService *users.UserService,
+	chainCache *memorycache.ChainsCache,
 	publisher *worker.Publisher,
 	logger *logger.Logger,
 ) *UserHandler {

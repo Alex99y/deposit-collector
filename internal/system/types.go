@@ -2,6 +2,8 @@ package system
 
 import (
 	errors "errors"
+
+	uuid "github.com/google/uuid"
 )
 
 type ChainPlatform string
@@ -32,6 +34,7 @@ type NewSupportedChainRequest struct {
 }
 
 type SupportedChain struct {
+	ChainDbID uuid.UUID
 	NewSupportedChainRequest
 }
 
@@ -54,6 +57,7 @@ type NewTokenAddressRequest struct {
 }
 
 type TokenAddress struct {
+	TokenAddressDbID uuid.UUID
 	BaseTokenAddress
 	Chain SupportedChain
 }

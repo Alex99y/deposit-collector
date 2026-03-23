@@ -4,6 +4,8 @@ import (
 	system "deposit-collector/internal/system"
 	walletservices "deposit-collector/internal/wallet_services"
 	logger "deposit-collector/pkg/logger"
+
+	uuid "github.com/google/uuid"
 )
 
 type UserService struct {
@@ -45,11 +47,12 @@ func (s *UserService) GenerateAddress(
 	return address, err
 }
 
-func (s *UserService) AddressAndChainNameExists(
+func (s *UserService) FindUserIdsByAddress(
 	address string,
-	chainName string,
-) (bool, error) {
-	return s.usersRepository.AddressAndChainNameExists(address, chainName)
+) (uuid.UUID, uuid.UUID, error) {
+	return s.usersRepository.FindUserIDAndAddressIDByAddress(
+		address,
+	)
 }
 
 func (s *UserService) GetUserAddresses(
