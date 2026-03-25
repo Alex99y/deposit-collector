@@ -42,9 +42,6 @@ func (w *Worker) run(ctx context.Context) error {
 				"Received deposit operation id: " +
 					args.OperationEvent.RequestId.String(),
 			)
-			w.logger.Info(
-				fmt.Sprintf("Parsed operation: %+v", parsedOperation),
-			)
 			customError, err := w.transactionService.ValidateAndStoreDepositOperation(
 				&parsedOperation,
 			)
