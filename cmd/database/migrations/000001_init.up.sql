@@ -109,7 +109,7 @@ CREATE TABLE operations (
     token_address_id UUID NOT NULL REFERENCES token_addresses(id),
     amount BIGINT NOT NULL,
     type operation_type NOT NULL,
-    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
     tx_hash VARCHAR(100) NOT NULL
 );
 
@@ -128,7 +128,7 @@ CREATE TABLE pending_deposit_operations (
     updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
     processed_at TIMESTAMPTZ NULL,
 
-    CONSTRAINT pending_deposit_operations_address_id_token_address_id_uk UNIQUE (address_id, token_address_id),
+    CONSTRAINT pending_deposit_operations_address_id_token_address_id_uk UNIQUE (address_id, token_address_id)
 );
 
 CREATE INDEX idx_pending_deposit_operations_token_address_id ON pending_deposit_operations (token_address_id, accumulated_amount DESC);
