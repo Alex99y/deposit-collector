@@ -1,4 +1,4 @@
-package crypto
+package wallet
 
 type CryptoWallet interface {
 	GetAddress() string

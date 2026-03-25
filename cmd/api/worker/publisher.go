@@ -2,6 +2,7 @@ package worker
 
 import (
 	context "context"
+	"encoding/json"
 	errors "errors"
 	fmt "fmt"
 	sync "sync"
@@ -128,18 +129,22 @@ func (p *Publisher) PublishDepositOperation(
 	despositTxHash string,
 	targetAddressDbId uuid.UUID,
 ) error {
+	operationData, err := json.Marshal(queue.DepositOperationEvent{
+		UserDbID:          userDbId,
+		TargetChainName:   targetChainName,
+		DepositTxHash:     despositTxHash,
+		TargetAddressDbId: targetAddressDbId,
+	})
+	if err != nil {
+		return err
+	}
 	req := publishReq{
 		ctx:        ctx,
 		routingKey: "deposit.operation",
 		body: queue.OperationEvent{
 			RequestId:     requestId,
 			OperationType: queue.OperationTypeDeposit,
-			OperationData: queue.DepositOperationEvent{
-				UserDbID:          userDbId,
-				TargetChainName:   targetChainName,
-				DepositTxHash:     despositTxHash,
-				TargetAddressDbId: targetAddressDbId,
-			},
+			OperationData: operationData,
 		},
 		mandatory:  false,
 		immediate:  false,

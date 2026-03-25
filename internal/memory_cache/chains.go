@@ -26,6 +26,24 @@ func (c *ChainsCache) GetSupportedChainsByPlatform(
 	return c.supportedChainsByPlatform[platform]
 }
 
+func (c *ChainsCache) GetPlatformByChainName(
+	chainName string,
+) system.ChainPlatform {
+	return c.supportedChainsByChainName[chainName].ChainPlatform
+}
+
+func (c *ChainsCache) GetTokenAddressByChainNameAndTokenAddress(
+	chainName string,
+	tokenAddress string,
+) *system.TokenAddress {
+	for _, token := range c.tokensByChainName[chainName] {
+		if token.Address == tokenAddress {
+			return token
+		}
+	}
+	return nil
+}
+
 func (c *ChainsCache) GetTokensByChainName(
 	chainName string,
 ) []*system.TokenAddress {

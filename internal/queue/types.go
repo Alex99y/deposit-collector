@@ -1,6 +1,11 @@
 package queue
 
-import "github.com/google/uuid"
+import (
+	json "encoding/json"
+	"errors"
+
+	"github.com/google/uuid"
+)
 
 type QueueName string
 type OperationType string
@@ -30,5 +35,25 @@ type WithdrawOperationEvent struct {
 type OperationEvent struct {
 	RequestId     uuid.UUID
 	OperationType OperationType
-	OperationData interface{}
+	OperationData []byte
+}
+
+func UnmarshalOperationData(operationEvent OperationEvent) (any, error) {
+	switch operationEvent.OperationType {
+	case OperationTypeDeposit:
+		var depositOperation DepositOperationEvent
+		err := json.Unmarshal(operationEvent.OperationData, &depositOperation)
+		if err != nil {
+			return nil, err
+		}
+		return depositOperation, nil
+	case OperationTypeWithdraw:
+		var withdrawOperation WithdrawOperationEvent
+		err := json.Unmarshal(operationEvent.OperationData, &withdrawOperation)
+		if err != nil {
+			return nil, err
+		}
+		return withdrawOperation, nil
+	}
+	return nil, errors.New("unknown operation type")
 }

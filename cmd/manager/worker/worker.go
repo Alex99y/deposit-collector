@@ -2,18 +2,20 @@ package worker
 
 import (
 	context "context"
-	"fmt"
+	fmt "fmt"
 
 	queue "deposit-collector/internal/queue"
+	transaction_service "deposit-collector/internal/transaction_service"
 	logger "deposit-collector/pkg/logger"
 	rabbitmq "deposit-collector/pkg/rabbitmq"
 	utils "deposit-collector/pkg/utils"
 )
 
 type Worker struct {
-	logger          *logger.Logger
-	operationsQueue *queue.OperationQueue
-	id              int
+	logger             *logger.Logger
+	transactionService *transaction_service.TransactionService
+	operationsQueue    *queue.OperationQueue
+	id                 int
 }
 
 func (w *Worker) Start(ctx context.Context) {
@@ -33,11 +35,45 @@ func (w *Worker) Stop(ctx context.Context) error {
 
 func (w *Worker) run(ctx context.Context) error {
 	err := w.operationsQueue.Consume(ctx, func(args *queue.OperationConsumerArgs) {
-		operation := args.Message()
-		w.logger.Info(fmt.Sprintf("Received operation: %+v", operation))
-		err := args.Ack()
-		if err != nil {
-			w.logger.Error(fmt.Sprintf("Error acknowledging operation: %v", err))
+		operation := args.OperationData()
+		switch parsedOperation := operation.(type) {
+		case queue.DepositOperationEvent:
+			w.logger.Info(
+				"Received deposit operation id: " +
+					args.OperationEvent.RequestId.String(),
+			)
+			err := w.transactionService.ValidateAndStoreDepositOperation(
+				&parsedOperation,
+			)
+			if err != nil {
+				w.logger.Error(
+					fmt.Sprintf(
+						"Error validating and storing deposit operation: %v",
+						err,
+					),
+				)
+				_ = args.Nack()
+				return
+			}
+			w.logger.Info(
+				fmt.Sprintf(
+					"Deposit operation validated and stored: %+v",
+					parsedOperation.DepositTxHash,
+				),
+			)
+			_ = args.Ack()
+			return
+		case queue.WithdrawOperationEvent:
+			w.logger.Info(
+				"Received withdraw operation id: " +
+					args.OperationEvent.RequestId.String(),
+			)
+			_ = args.Ack()
+			return
+		default:
+			w.logger.Error(fmt.Sprintf("Unknown operation type: %T", parsedOperation))
+			_ = args.Nack()
+			return
 		}
 	})
 	return err
@@ -45,6 +81,7 @@ func (w *Worker) run(ctx context.Context) error {
 
 func NewWorker(
 	rmq *rabbitmq.RabbitMQClient,
+	transactionService *transaction_service.TransactionService,
 	id int,
 	logger *logger.Logger,
 ) *Worker {

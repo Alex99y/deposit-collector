@@ -1,4 +1,4 @@
-package crypto
+package wallet
 
 import "fmt"
 

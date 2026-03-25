@@ -1,4 +1,4 @@
-package crypto
+package wallet
 
 /**
 * The source of this code is from the following repository:

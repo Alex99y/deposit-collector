@@ -4,7 +4,7 @@ import (
 	hex "encoding/hex"
 
 	system "deposit-collector/internal/system"
-	crypto "deposit-collector/pkg/crypto"
+	crypto "deposit-collector/pkg/crypto/wallet"
 	logger "deposit-collector/pkg/logger"
 	utils "deposit-collector/pkg/utils"
 )

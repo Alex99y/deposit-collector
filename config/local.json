@@ -4,7 +4,7 @@
             "ethereum": {
                 "url": "http://localhost:8545",
                 "chain_id": 1,
-                "min_confirmations": 15
+                "min_confirmations": 2
             }
         },
         "BTC": {

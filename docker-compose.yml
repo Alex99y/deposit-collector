@@ -57,3 +57,17 @@ services:
       - ./docker-files/grafana/dashboards:/var/lib/grafana/dashboards:ro
     depends_on:
       - prometheus
+
+  hardhat:
+    build:
+      context: .
+      dockerfile: hardhat/Dockerfile
+    init: true
+    command: npm run start
+    ports:
+      - "8545:8545"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8545"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
