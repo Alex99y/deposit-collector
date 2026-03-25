@@ -9,6 +9,7 @@ import (
 	favicon "github.com/gofiber/fiber/v3/middleware/favicon"
 	limiter "github.com/gofiber/fiber/v3/middleware/limiter"
 	requestid "github.com/gofiber/fiber/v3/middleware/requestid"
+	uuid "github.com/google/uuid"
 
 	handlers "deposit-collector/cmd/api/http/handlers"
 	middlewares "deposit-collector/cmd/api/http/middlewares"
@@ -39,7 +40,11 @@ func NewServer(dependencies ServerDependencies) *Server {
 		StructValidator: validations.NewStructValidator(),
 	})
 	app.Use(middlewares.AccessLog(dependencies.Logger))
-	app.Use(requestid.New())
+	app.Use(requestid.New(requestid.Config{
+		Generator: func() string {
+			return uuid.New().String()
+		},
+	}))
 	app.Use(favicon.New())
 
 	// TODO: Configure limiter

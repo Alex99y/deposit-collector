@@ -46,7 +46,7 @@ func (w *Worker) run(ctx context.Context) error {
 				&parsedOperation,
 			)
 			if customError != nil {
-				if customError.IsRetryable() {
+				if !customError.IsRetryable() {
 					w.logger.Error(
 						fmt.Sprintf("Error validating and storing deposit operation: %v",
 							customError.ErrorMessage()),

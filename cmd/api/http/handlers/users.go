@@ -11,6 +11,7 @@ import (
 	logger "deposit-collector/pkg/logger"
 
 	fiber "github.com/gofiber/fiber/v3"
+	"github.com/gofiber/fiber/v3/middleware/requestid"
 	uuid "github.com/google/uuid"
 )
 
@@ -128,11 +129,11 @@ func (h *UserHandler) ManualDeposit(c fiber.Ctx) {
 		)
 		return
 	}
-	requestId := uuid.New()
+	requestUuId := requestid.FromContext(c)
 	// Publish the deposit operation
 	err = h.publisher.PublishDepositOperation(
 		c.Context(),
-		requestId,
+		uuid.MustParse(requestUuId),
 		userId,
 		request.ChainName,
 		request.Address,
@@ -147,7 +148,7 @@ func (h *UserHandler) ManualDeposit(c fiber.Ctx) {
 	jsonData, _ := json.Marshal(map[string]string{
 		"message": "Deposit request received. " +
 			"If the tx is not finalized, it will be rejected by the system.",
-		"id": requestId.String(),
+		"id": requestUuId,
 	})
 	_, _ = c.Write(jsonData)
 }

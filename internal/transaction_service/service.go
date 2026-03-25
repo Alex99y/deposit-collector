@@ -5,6 +5,7 @@ import (
 	queue "deposit-collector/internal/queue"
 	provider "deposit-collector/pkg/crypto/provider"
 	logger "deposit-collector/pkg/logger"
+	"deposit-collector/pkg/postgresql"
 	utils "deposit-collector/pkg/utils"
 )
 
@@ -25,7 +26,7 @@ func (s *TransactionService) ValidateAndStoreDepositOperation(
 	)
 	if err != nil {
 		if err.Error() == "not found" {
-			return utils.NewCustomError("operation not found", true), nil
+			return utils.NewCustomError("operation not found", false), nil
 		}
 		return nil, err
 	}
@@ -42,7 +43,11 @@ func (s *TransactionService) ValidateAndStoreDepositOperation(
 		processedOperation.Amount,
 		operation.DepositTxHash,
 	)
+
 	if err != nil {
+		if _, ok := postgresql.UniqueConstraintViolation(err); ok {
+			return utils.NewCustomError("operation already endorsed", false), nil
+		}
 		return nil, err
 	}
 
