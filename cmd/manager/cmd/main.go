@@ -66,6 +66,7 @@ func main() {
 		providerPool,
 		transactionRepository,
 		chainsCache,
+		logger,
 	)
 
 	logger.Info(fmt.Sprintf("starting manager with workers=%d", maxWorkers))

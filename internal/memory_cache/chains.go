@@ -1,6 +1,8 @@
 package memorycache
 
-import "deposit-collector/internal/system"
+import (
+	"deposit-collector/internal/system"
+)
 
 /*
 ChainsCache is a cache of the supported chains and tokens.

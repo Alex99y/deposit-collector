@@ -42,9 +42,22 @@ func (w *Worker) run(ctx context.Context) error {
 				"Received deposit operation id: " +
 					args.OperationEvent.RequestId.String(),
 			)
-			err := w.transactionService.ValidateAndStoreDepositOperation(
+			w.logger.Info(
+				fmt.Sprintf("Parsed operation: %+v", parsedOperation),
+			)
+			customError, err := w.transactionService.ValidateAndStoreDepositOperation(
 				&parsedOperation,
 			)
+			if customError != nil {
+				if customError.IsRetryable() {
+					w.logger.Error(
+						fmt.Sprintf("Error validating and storing deposit operation: %v",
+							customError.ErrorMessage()),
+					)
+					_ = args.Reject()
+					return
+				}
+			}
 			if err != nil {
 				w.logger.Error(
 					fmt.Sprintf(
@@ -85,6 +98,9 @@ func NewWorker(
 	id int,
 	logger *logger.Logger,
 ) *Worker {
+	if rmq == nil || transactionService == nil || logger == nil {
+		panic("Invalid worker dependencies")
+	}
 	qq, err := rabbitmq.GetQueue(rmq, rabbitmq.ChannelArgs{
 		PrefetchCount: 1,
 		PrefetchSize:  0,
@@ -98,5 +114,10 @@ func NewWorker(
 		utils.FailOnError(logger, err, "Error creating operations queue")
 	}
 	operationsQueue := queue.NewOperationsQueue(qq, logger)
-	return &Worker{logger: logger, operationsQueue: operationsQueue, id: id}
+	return &Worker{
+		logger:             logger,
+		transactionService: transactionService,
+		operationsQueue:    operationsQueue,
+		id:                 id,
+	}
 }

@@ -6,6 +6,7 @@ import (
 	io "io"
 	os "os"
 
+	"deposit-collector/internal/system"
 	logger "deposit-collector/pkg/logger"
 	utils "deposit-collector/pkg/utils"
 )
@@ -15,13 +16,9 @@ type RpcConfig struct {
 	ChainID          int    `json:"chain_id"`
 	MinConfirmations int    `json:"min_confirmations"`
 }
-type RpcConfigByChainPlatform struct {
-	EVM RpcConfig `json:"EVM"`
-	BTC RpcConfig `json:"BTC"`
-	SOL RpcConfig `json:"SOL"`
-}
+
 type ProviderConfig struct {
-	Rpc map[string]RpcConfigByChainPlatform `json:"rpc"`
+	Rpc map[system.ChainPlatform]map[string]RpcConfig `json:"rpc"`
 }
 
 type ProviderPool struct {
@@ -41,11 +38,12 @@ func NewProviderPool(
 ) *ProviderPool {
 	providerConfig := readProviderConfig(providerFilePath, logger)
 	evmProvidersMap := make(map[string]*EVMProvider)
-	for chainName, rpcConfig := range providerConfig.Rpc {
+	evmProviders := providerConfig.Rpc[system.ChainPlatformEVM]
+	for chainName, rpcConfig := range evmProviders {
 		evmProvidersMap[chainName] = NewEVMProvider(
-			rpcConfig.EVM.Url,
-			rpcConfig.EVM.ChainID,
-			rpcConfig.EVM.MinConfirmations,
+			rpcConfig.Url,
+			rpcConfig.ChainID,
+			rpcConfig.MinConfirmations,
 			context,
 			logger,
 		)

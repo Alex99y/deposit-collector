@@ -23,6 +23,7 @@ type DepositOperationEvent struct {
 	UserDbID          uuid.UUID
 	TargetAddressDbId uuid.UUID
 	TargetChainName   string
+	TargetAddress     string
 	DepositTxHash     string
 }
 

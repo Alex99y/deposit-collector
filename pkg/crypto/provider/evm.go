@@ -19,13 +19,14 @@ type EVMProvider struct {
 }
 
 type EvmTxInfo struct {
-	From        string
-	To          string
-	Amount      string
-	ChainID     string
-	TxHash      string
-	BlockNumber string
-	Timestamp   string
+	From      string
+	To        string
+	Amount    string
+	ChainID   string
+	TxHash    string
+	Timestamp string
+	Input     []byte
+	TxReceipt *types.Receipt
 }
 
 func (p *EVMProvider) GetLatestBlockNumber() (uint64, error) {
@@ -54,13 +55,14 @@ func (p *EVMProvider) GetTxInfo(txHash string) (*EvmTxInfo, error) {
 	}
 
 	return &EvmTxInfo{
-		TxHash:      txHash,
-		From:        from.Hex(),
-		To:          txInfo.To().Hex(),
-		Amount:      txInfo.Value().String(),
-		ChainID:     txInfo.ChainId().String(),
-		BlockNumber: tx.BlockNumber.String(),
-		Timestamp:   txInfo.Time().String(),
+		TxHash:    txHash,
+		From:      from.Hex(),
+		To:        txInfo.To().Hex(),
+		Amount:    txInfo.Value().String(),
+		Input:     txInfo.Data(),
+		ChainID:   txInfo.ChainId().String(),
+		Timestamp: txInfo.Time().String(),
+		TxReceipt: tx,
 	}, nil
 }
 

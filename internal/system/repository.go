@@ -115,8 +115,9 @@ func (r *SystemRepository) GetTokenAddresses(
 	var tokenAddresses []TokenAddress
 
 	q := `
-SELECT ta.unit_name, ta.unit_symbol, ta.address, ta.decimals,
-sc.chain_name, sc.chain_platform, sc.evm_chain_id
+SELECT ta.id as token_address_db_id, ta.unit_name, ta.unit_symbol, ta.address,
+ta.decimals, sc.id as chain_db_id, sc.chain_name, sc.chain_platform,
+sc.evm_chain_id 
 FROM token_addresses as ta
 INNER JOIN supported_chains as sc ON ta.chain_id = sc.id
 `
@@ -166,10 +167,12 @@ INNER JOIN supported_chains as sc ON ta.chain_id = sc.id
 		var tokenAddress TokenAddress
 		var chain SupportedChain
 		if err := rows.Scan(
+			&tokenAddress.TokenAddressDbID,
 			&tokenAddress.UnitName,
 			&tokenAddress.UnitSymbol,
 			&tokenAddress.Address,
 			&tokenAddress.Decimals,
+			&chain.ChainDbID,
 			&chain.ChainName,
 			&chain.ChainPlatform,
 			&chain.EVMChainID,

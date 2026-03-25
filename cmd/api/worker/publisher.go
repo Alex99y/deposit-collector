@@ -126,6 +126,7 @@ func (p *Publisher) PublishDepositOperation(
 	requestId uuid.UUID,
 	userDbId uuid.UUID,
 	targetChainName string,
+	targetAddress string,
 	despositTxHash string,
 	targetAddressDbId uuid.UUID,
 ) error {
@@ -133,6 +134,7 @@ func (p *Publisher) PublishDepositOperation(
 		UserDbID:          userDbId,
 		TargetChainName:   targetChainName,
 		DepositTxHash:     despositTxHash,
+		TargetAddress:     targetAddress,
 		TargetAddressDbId: targetAddressDbId,
 	})
 	if err != nil {

@@ -135,6 +135,7 @@ func (h *UserHandler) ManualDeposit(c fiber.Ctx) {
 		requestId,
 		userId,
 		request.ChainName,
+		request.Address,
 		request.TxHash,
 		addressDbId,
 	)
@@ -157,8 +158,13 @@ func NewUserHandler(
 	publisher *worker.Publisher,
 	logger *logger.Logger,
 ) *UserHandler {
+	if chainCache == nil || publisher == nil ||
+		logger == nil || usersService == nil {
+		panic("Invalid handler dependencies")
+	}
 	return &UserHandler{
 		userController: usersService,
+		chainCache:     chainCache,
 		publisher:      publisher,
 		logger:         logger,
 	}

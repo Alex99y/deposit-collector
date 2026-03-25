@@ -3,11 +3,16 @@
   "version": "1.0.0",
   "type": "module",
   "scripts": {
-    "start": "./start-hardhat.sh"
+    "start": "./start-hardhat.sh",
+    "send": "tsx src/send.ts"
   },
   "devDependencies": {
     "@types/node": "^22.19.15",
     "hardhat": "^3.2.0",
+    "tsx": "^4.19.4",
     "typescript": "~5.8.0"
+  },
+  "dependencies": {
+    "viem": "^2.47.6"
   }
 }
