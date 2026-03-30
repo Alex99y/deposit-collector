@@ -1,8 +1,12 @@
 import { defineConfig } from "hardhat/config";
-// @ts-expect-error Expect import error. This file is intended to be executed in a docker container.
-import privateKeys from "./common/privatekeys.json";
+import privateKeys from "../common/privatekeys.json";
 
 export default defineConfig({
+  paths: {
+    sources: {
+      solidity: ["contracts/src"],
+    },
+  },
   solidity: {
     version: "0.8.28",
   },

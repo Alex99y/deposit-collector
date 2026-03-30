@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.24;
 
-import {ERC20} from "../openzeppelin-contracts/contracts/token/ERC20/ERC20.sol";
-import {EIP712} from "../openzeppelin-contracts/contracts/utils/cryptography/EIP712.sol";
-import {ECDSA} from "../openzeppelin-contracts/contracts/utils/cryptography/ECDSA.sol";
+import {ERC20} from "../../openzeppelin-contracts/contracts/token/ERC20/ERC20.sol";
+import {EIP712} from "../../openzeppelin-contracts/contracts/utils/cryptography/EIP712.sol";
+import {ECDSA} from "../../openzeppelin-contracts/contracts/utils/cryptography/ECDSA.sol";
 
 /**
  * @dev Interface for https://eips.ethereum.org/EIPS/eip-3009[ERC-3009] transfer with authorization.

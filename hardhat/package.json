@@ -4,6 +4,7 @@
   "type": "module",
   "scripts": {
     "start": "./start-hardhat.sh",
+    "build": "hardhat build",
     "send": "tsx src/send.ts"
   },
   "devDependencies": {
