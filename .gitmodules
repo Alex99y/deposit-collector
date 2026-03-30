@@ -1,0 +1,3 @@
+[submodule "hardhat/contracts/openzeppelin-contracts"]
+	path = hardhat/contracts/openzeppelin-contracts
+	url = git@github.com:OpenZeppelin/openzeppelin-contracts.git
