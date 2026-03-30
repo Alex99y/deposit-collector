@@ -19,11 +19,14 @@ type TransactionService struct {
 func (s *TransactionService) ValidateAndStoreDepositOperation(
 	operation *queue.DepositOperationEvent,
 ) (*utils.CustomError, error) {
-	processedOperation, err := ProcessDepositOperation(
+	processedOperation, customError, err := ProcessDepositOperation(
 		s.providerPool,
 		s.chainsCache,
 		operation,
 	)
+	if customError != nil {
+		return customError, err
+	}
 	if err != nil {
 		if err.Error() == "not found" {
 			return utils.NewCustomError("operation not found", false), nil
