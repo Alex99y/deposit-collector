@@ -42,14 +42,14 @@ func (w *Worker) run(ctx context.Context) error {
 				"Received deposit operation id: " +
 					args.OperationEvent.RequestId.String(),
 			)
-			customError, err := w.transactionService.ValidateAndStoreDepositOperation(
+			err := w.transactionService.ValidateAndStoreDepositOperation(
 				&parsedOperation,
 			)
-			if customError != nil {
+			if customError, ok := utils.IsCustomError(err); ok {
 				if !customError.IsRetryable() {
 					w.logger.Error(
 						fmt.Sprintf("Error validating and storing deposit operation: %v",
-							customError.ErrorMessage()),
+							customError.Error()),
 					)
 					_ = args.Reject()
 					return

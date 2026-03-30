@@ -18,20 +18,20 @@ func processEVMDepositOperation(
 	chainsCache *memorycache.ChainsCache,
 	provider *provider.EVMProvider,
 	operation *queue.DepositOperationEvent,
-) (*ProcessedDepositOperation, *utils.CustomError, error) {
+) (*ProcessedDepositOperation, error) {
 	txInfo, err := provider.GetTxInfo(operation.DepositTxHash)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 
 	latestBlockNumber, err := provider.GetLatestBlockNumber()
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 
 	if txInfo.TxReceipt.BlockNumber.Int64()+int64(provider.MinConfirmations) <
 		int64(latestBlockNumber) {
-		return nil, utils.NewCustomError("transaction not confirmed", false), nil
+		return nil, utils.NewCustomError("transaction not confirmed", false)
 	}
 
 	var tokenAddress string
@@ -43,14 +43,14 @@ func processEVMDepositOperation(
 		tokenAddress = "native"
 		amount, err = utils.StringToInt64(txInfo.Amount)
 		if err != nil {
-			return nil, nil, err
+			return nil, err
 		}
 		txTargetAddress = txInfo.To
 	} else {
 		// ERC20 transfer
 		transfers := evm_utils.FindERC20Transfers(txInfo.TxReceipt)
 		if len(transfers) == 0 {
-			return nil, utils.NewCustomError("no ERC20 transfer found", false), nil
+			return nil, utils.NewCustomError("no ERC20 transfer found", false)
 		}
 		tokenAddress = transfers[0].Token.Hex()
 		amount = transfers[0].Value.Int64()
@@ -61,41 +61,39 @@ func processEVMDepositOperation(
 			tokenAddress,
 		)
 		if tokenAddressInfo == nil {
-			return nil, utils.NewCustomError("token not found", false), nil
+			return nil, utils.NewCustomError("token not found", false)
 		}
 	}
 
 	if txTargetAddress != operation.TargetAddress {
 		return nil, utils.NewCustomError(
 			"invalid target address, expected: "+operation.TargetAddress+
-				", got: "+txTargetAddress,
-			false,
-		), nil
+				", got: "+txTargetAddress, false)
 	}
 
 	return &ProcessedDepositOperation{
 		TokenAddress: tokenAddress,
 		Amount:       amount,
-	}, nil, nil
+	}, nil
 }
 
 func processBTCDepositOperation(
 	operation *queue.DepositOperationEvent,
-) (*ProcessedDepositOperation, *utils.CustomError, error) {
-	return nil, nil, nil
+) (*ProcessedDepositOperation, error) {
+	return nil, nil
 }
 
 func processSOLDepositOperation(
 	operation *queue.DepositOperationEvent,
-) (*ProcessedDepositOperation, *utils.CustomError, error) {
-	return nil, nil, nil
+) (*ProcessedDepositOperation, error) {
+	return nil, nil
 }
 
 func ProcessDepositOperation(
 	providerPool *provider.ProviderPool,
 	chainsCache *memorycache.ChainsCache,
 	operation *queue.DepositOperationEvent,
-) (*ProcessedDepositOperation, *utils.CustomError, error) {
+) (*ProcessedDepositOperation, error) {
 	chainPlatform := chainsCache.GetPlatformByChainName(
 		operation.TargetChainName,
 	)
@@ -108,7 +106,7 @@ func ProcessDepositOperation(
 	case system.ChainPlatformSOL:
 		return processSOLDepositOperation(operation)
 	}
-	return nil, nil, nil
+	return nil, nil
 }
 
 func ProcessWithdrawOperation(

@@ -18,20 +18,20 @@ type TransactionService struct {
 
 func (s *TransactionService) ValidateAndStoreDepositOperation(
 	operation *queue.DepositOperationEvent,
-) (*utils.CustomError, error) {
-	processedOperation, customError, err := ProcessDepositOperation(
+) error {
+	processedOperation, err := ProcessDepositOperation(
 		s.providerPool,
 		s.chainsCache,
 		operation,
 	)
-	if customError != nil {
-		return customError, err
+	if customError, ok := utils.IsCustomError(err); ok {
+		return customError
 	}
 	if err != nil {
 		if err.Error() == "not found" {
-			return utils.NewCustomError("operation not found", false), nil
+			return utils.NewCustomError("operation not found", false)
 		}
-		return nil, err
+		return err
 	}
 
 	tokenAddressInfo := s.chainsCache.GetTokenAddressByChainNameAndTokenAddress(
@@ -49,12 +49,12 @@ func (s *TransactionService) ValidateAndStoreDepositOperation(
 
 	if err != nil {
 		if _, ok := postgresql.UniqueConstraintViolation(err); ok {
-			return utils.NewCustomError("operation already endorsed", false), nil
+			return utils.NewCustomError("operation already endorsed", false)
 		}
-		return nil, err
+		return err
 	}
 
-	return nil, nil
+	return nil
 }
 
 func NewTransactionService(

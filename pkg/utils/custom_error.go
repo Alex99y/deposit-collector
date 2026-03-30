@@ -1,12 +1,10 @@
 package utils
 
-type CustomError struct {
-	message     string
-	isRetryable bool
-}
+import "errors"
 
-func (e *CustomError) ErrorMessage() string {
-	return e.message
+type CustomError struct {
+	error
+	isRetryable bool
 }
 
 func (e *CustomError) IsRetryable() bool {
@@ -14,5 +12,16 @@ func (e *CustomError) IsRetryable() bool {
 }
 
 func NewCustomError(message string, isRetryable bool) *CustomError {
-	return &CustomError{message: message, isRetryable: isRetryable}
+	return &CustomError{
+		error:       errors.New(message),
+		isRetryable: isRetryable,
+	}
+}
+
+func IsCustomError(err error) (*CustomError, bool) {
+	if err == nil {
+		return nil, false
+	}
+	customError, ok := err.(*CustomError)
+	return customError, ok
 }
