@@ -8,6 +8,7 @@
     "send": "tsx src/send.ts"
   },
   "devDependencies": {
+    "@nomicfoundation/hardhat-viem": "^3.0.4",
     "@types/node": "^22.19.15",
     "hardhat": "^3.2.0",
     "tsx": "^4.19.4",

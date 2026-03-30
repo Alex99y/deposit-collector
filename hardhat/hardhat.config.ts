@@ -1,7 +1,9 @@
+import hardhatViem from "@nomicfoundation/hardhat-viem";
 import { defineConfig } from "hardhat/config";
 import privateKeys from "../common/privatekeys.json";
 
 export default defineConfig({
+  plugins: [hardhatViem],
   paths: {
     sources: {
       solidity: ["contracts/src"],
