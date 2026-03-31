@@ -5,7 +5,8 @@
   "scripts": {
     "start": "./start-hardhat.sh",
     "build": "hardhat build",
-    "send": "tsx src/send.ts"
+    "send": "tsx src/send.ts",
+    "send:erc20": "tsx src/send_erc20.ts"
   },
   "devDependencies": {
     "@nomicfoundation/hardhat-viem": "^3.0.4",

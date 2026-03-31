@@ -1,6 +1,8 @@
 import { network } from "hardhat";
 
-const { viem, networkName } = await network.connect({ network: "node" });
+// `network: "node"` is an in-process EDR chain; it is NOT the JSON-RPC server from `hardhat node`.
+// Deploy via `localhost` so contracts exist on http://127.0.0.1:8545 (same RPC as send_erc20.ts).
+const { viem, networkName } = await network.connect({ network: "localhost" });
 
 const publicClient = await viem.getPublicClient();
 

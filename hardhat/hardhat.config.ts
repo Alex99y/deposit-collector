@@ -13,6 +13,13 @@ export default defineConfig({
     version: "0.8.28",
   },
   networks: {
+    // Use this when `hardhat node` is running: deploy/scripts share the same chain as :8545.
+    localhost: {
+      type: "http",
+      url: "http://127.0.0.1:8545",
+      chainId: 1,
+      accounts: privateKeys.map((wallet: { privateKey: string }) => wallet.privateKey),
+    },
     node: {
       type: "edr-simulated",
       chainId: 1,
