@@ -29,7 +29,7 @@ func processEVMDepositOperation(
 		return nil, err
 	}
 
-	if txInfo.TxReceipt.BlockNumber.Int64()+int64(provider.MinConfirmations) <
+	if txInfo.TxReceipt.BlockNumber.Int64()+int64(provider.MinConfirmations) >
 		int64(latestBlockNumber) {
 		return nil, utils.NewCustomError("transaction not confirmed", false)
 	}

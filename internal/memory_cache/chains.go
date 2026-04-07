@@ -1,7 +1,9 @@
 package memorycache
 
 import (
-	"deposit-collector/internal/system"
+	strings "strings"
+
+	system "deposit-collector/internal/system"
 )
 
 /*
@@ -39,7 +41,7 @@ func (c *ChainsCache) GetTokenAddressByChainNameAndTokenAddress(
 	tokenAddress string,
 ) *system.TokenAddress {
 	for _, token := range c.tokensByChainName[chainName] {
-		if token.Address == tokenAddress {
+		if token.Address == strings.ToLower(tokenAddress) {
 			return token
 		}
 	}
@@ -57,7 +59,7 @@ func (c *ChainsCache) GetTokenByChainNameAndTokenAddress(
 	tokenAddress string,
 ) *system.TokenAddress {
 	for _, token := range c.tokensByChainName[chainName] {
-		if token.Address == tokenAddress {
+		if token.Address == strings.ToLower(tokenAddress) {
 			return token
 		}
 	}

@@ -49,4 +49,4 @@ const balance = await publicClient.readContract({
 });
 
 console.log("Balance:", formatUnits(balance as bigint, 18));
-console.log("Transaction successful");
+console.log(tx);

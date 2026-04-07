@@ -39,6 +39,10 @@ func (s *TransactionService) ValidateAndStoreDepositOperation(
 		processedOperation.TokenAddress,
 	)
 
+	if tokenAddressInfo == nil {
+		return utils.NewCustomError("token address not found", false)
+	}
+
 	err = s.repository.EndorseDepositOperation(
 		operation.UserDbID,
 		operation.TargetAddressDbId,
