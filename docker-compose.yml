@@ -71,3 +71,31 @@ services:
       interval: 30s
       timeout: 10s
       retries: 5
+
+  bitcoind:
+    image: bitcoin/bitcoin:28.4-alpine
+    entrypoint: ["/bin/sh", "/start.sh"]
+    volumes:
+      - ./docker-files/bitcoin-node/start.sh:/start.sh:ro
+      - ./docker-files/bitcoin-node/bitcoin.conf:/root/.bitcoin/bitcoin.conf:ro
+    environment:
+      - MINER_ADDRESS=bcrt1qdm9wyf60upmuyq87w3s75r33gkucza0tqfgg6a
+    ports:
+      - "18443:18443"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:18443"]
+      interval: 1s
+      timeout: 10s
+      retries: 5
+  electrumx:
+    image: lukechilds/electrumx
+    ports:
+      - "50001:50001"
+      - "18000:18000"
+    environment:
+      - DAEMON_URL=http://admin:admin@bitcoind:18443/
+      - COIN=Bitcoin
+      - NET=regtest
+      - SERVICES=tcp://0.0.0.0:50001,rpc://0.0.0.0:18000
+    depends_on:
+      - bitcoind
