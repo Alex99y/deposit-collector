@@ -1,0 +1,22 @@
+{
+  "name": "scripts",
+  "version": "1.0.0",
+  "main": "index.js",
+  "scripts": {
+    "get-balance": "tsx src/get-address-balance.ts",
+    "fund-address": "tsx src/fund-address.ts",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "description": "",
+  "dependencies": {
+    "@types/node": "^25.5.2",
+    "bitcoinjs-lib": "^7.0.1",
+    "ecpair": "^3.0.1",
+    "tiny-secp256k1": "^2.2.4",
+    "tsx": "^4.21.0",
+    "typescript": "^6.0.2"
+  }
+}
