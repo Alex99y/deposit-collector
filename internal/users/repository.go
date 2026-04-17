@@ -3,6 +3,7 @@ package users
 import (
 	"context"
 	sql "database/sql"
+	"fmt"
 	time "time"
 
 	postgresql "deposit-collector/pkg/postgresql"
@@ -189,6 +190,7 @@ INSERT INTO user_addresses (address, sequence_number, user_id, chain)
 VALUES ($1, $2, $3, $4)
 RETURNING id
 `
+	fmt.Printf("Address %s\n", addressString)
 	err = tx.QueryRowContext(
 		r.ctx, insertAddressQuery,
 		addressString, sequenceNumber, userID, request.Chain,

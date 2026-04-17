@@ -51,6 +51,7 @@ func main() {
 
 	providerPool := provider.NewProviderPool(
 		managerConfig.RPCFilePath,
+		managerConfig.BitcoinNetwork,
 		ctx,
 		logger,
 	)

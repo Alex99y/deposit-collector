@@ -4,6 +4,7 @@ import (
 	hex "encoding/hex"
 	fmt "fmt"
 
+	btc_utils "deposit-collector/pkg/crypto/btc"
 	utils "deposit-collector/pkg/utils"
 
 	btcutil "github.com/btcsuite/btcd/btcutil"
@@ -36,21 +37,15 @@ func (b *BitcoinWallet) SignMessage(message string) ([]byte, error) {
 
 func GenerateBitcoinWallet(
 	seed []byte,
-	isTestnet bool,
+	network btc_utils.NETWORK,
 	purpose uint32,
 	accountIndex uint32,
 	changeIndex uint32,
 	index uint32,
 ) (*BitcoinWallet, error) {
-	var params *chaincfg.Params
-	var coinType uint32
-	if isTestnet {
-		params = &chaincfg.TestNet3Params
-		coinType = CoinTypeBTCTestnet
-	} else {
-		params = &chaincfg.MainNetParams
-		coinType = CoinTypeBTC
-	}
+
+	params := btc_utils.GetNetParamsByNetwork(network)
+	coinType := params.HDCoinType
 	if purpose == PurposeBTCNativeSegwit {
 		return generateNativeSegwitWallet(
 			seed, params, coinType, accountIndex, changeIndex, index,

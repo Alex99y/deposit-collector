@@ -5,6 +5,7 @@ import (
 	"os"
 	"strconv"
 
+	btc_utils "deposit-collector/pkg/crypto/btc"
 	logger "deposit-collector/pkg/logger"
 
 	godotenv "github.com/joho/godotenv"
@@ -13,10 +14,11 @@ import (
 )
 
 type CommonConfig struct {
-	RabbitMQURL string
-	MetricsPort int
-	PostgresURL string
-	WalletSeed  string
+	RabbitMQURL    string
+	MetricsPort    int
+	PostgresURL    string
+	WalletSeed     string
+	BitcoinNetwork btc_utils.NETWORK
 }
 
 func loadEnvFile(logger *logger.Logger) {
@@ -56,9 +58,10 @@ func GetCommonConfig(logger *logger.Logger) *CommonConfig {
 		)
 	}
 	return &CommonConfig{
-		RabbitMQURL: GetEnvOrThrow(logger, RabbitMQURL),
-		MetricsPort: metricsPort,
-		PostgresURL: GetEnvOrThrow(logger, PostgresURL),
-		WalletSeed:  GetEnvOrThrow(logger, WalletSeed),
+		RabbitMQURL:    GetEnvOrThrow(logger, RabbitMQURL),
+		MetricsPort:    metricsPort,
+		PostgresURL:    GetEnvOrThrow(logger, PostgresURL),
+		WalletSeed:     GetEnvOrThrow(logger, WalletSeed),
+		BitcoinNetwork: btc_utils.NETWORK(GetEnvOrThrow(logger, BitcoinNetwork)),
 	}
 }

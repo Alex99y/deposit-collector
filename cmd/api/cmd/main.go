@@ -59,7 +59,7 @@ func main() {
 	usersRepository := users.NewUsersRepository(appCtx, db)
 	usersService := users.NewUserService(usersRepository, walletService, logger)
 	usersHandler := handlers.NewUserHandler(
-		usersService, chainsCache, publisher, logger,
+		usersService, chainsCache, publisher, apiConfig.BitcoinNetwork, logger,
 	)
 
 	serverDependencies := http.ServerDependencies{

@@ -28,13 +28,13 @@ func ValidateChainPlatform(chainPlatform string) error {
 }
 
 type NewSupportedChainRequest struct {
-	ChainName     string
-	ChainPlatform ChainPlatform
-	EVMChainID    int
+	ChainName     string        `json:"chainName"`
+	ChainPlatform ChainPlatform `json:"chainPlatform"`
+	EVMChainID    *int          `json:"evmChainId,omitempty"`
 }
 
 type SupportedChain struct {
-	ChainDbID uuid.UUID
+	ChainDbID uuid.UUID `json:"chainDbId"`
 	NewSupportedChainRequest
 }
 
@@ -45,21 +45,21 @@ Example: Ethereum
 */
 
 type BaseTokenAddress struct {
-	UnitName   string
-	UnitSymbol string
-	Address    string
-	Decimals   int
+	UnitName   string `json:"unitName"`
+	UnitSymbol string `json:"unitSymbol"`
+	Address    string `json:"address"`
+	Decimals   int    `json:"decimals"`
 }
 
 type NewTokenAddressRequest struct {
 	BaseTokenAddress
-	ChainName string
+	ChainName string `json:"chainName"`
 }
 
 type TokenAddress struct {
-	TokenAddressDbID uuid.UUID
+	TokenAddressDbID uuid.UUID `json:"tokenAddressDbId"`
 	BaseTokenAddress
-	Chain SupportedChain
+	Chain SupportedChain `json:"supportedChain"`
 }
 
 type GetTokenAddressesRequest struct {

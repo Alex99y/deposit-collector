@@ -8,6 +8,7 @@ import (
 	memorycache "deposit-collector/internal/memory_cache"
 	system "deposit-collector/internal/system"
 	users "deposit-collector/internal/users"
+	btc_utils "deposit-collector/pkg/crypto/btc"
 	logger "deposit-collector/pkg/logger"
 
 	fiber "github.com/gofiber/fiber/v3"
@@ -19,6 +20,7 @@ type UserHandler struct {
 	userController *users.UserService
 	chainCache     *memorycache.ChainsCache
 	publisher      *worker.Publisher
+	bitcoinNetwork btc_utils.NETWORK
 	logger         *logger.Logger
 }
 
@@ -68,7 +70,7 @@ func (h *UserHandler) GenerateAddress(c fiber.Ctx) {
 		return
 	}
 	address, err := h.userController.GenerateAddress(
-		c.Params("id"), system.ChainPlatform(request.Chain),
+		c.Params("id"), h.bitcoinNetwork, system.ChainPlatform(request.Chain),
 	)
 	if err != nil {
 		_ = utils.NewServerErrorResponse(c, h.logger, err)
@@ -157,6 +159,7 @@ func NewUserHandler(
 	usersService *users.UserService,
 	chainCache *memorycache.ChainsCache,
 	publisher *worker.Publisher,
+	bitcoinNetwork btc_utils.NETWORK,
 	logger *logger.Logger,
 ) *UserHandler {
 	if chainCache == nil || publisher == nil ||
@@ -167,6 +170,7 @@ func NewUserHandler(
 		userController: usersService,
 		chainCache:     chainCache,
 		publisher:      publisher,
+		bitcoinNetwork: bitcoinNetwork,
 		logger:         logger,
 	}
 }

@@ -9,7 +9,7 @@
         },
         "BTC": {
             "bitcoin": {
-                "url": "http://localhost:8332",
+                "url": "http://localhost:50001",
                 "min_confirmations": 2
             }
         },

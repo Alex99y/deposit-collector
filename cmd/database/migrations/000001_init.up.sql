@@ -94,7 +94,7 @@ CREATE TABLE user_addresses (
 );
 
 CREATE UNIQUE INDEX user_addresses_address_uk ON user_addresses (address);
-CREATE UNIQUE INDEX user_addresses_user_chain_uk ON user_addresses (user_id, chain);
+CREATE UNIQUE INDEX user_addresses_user_chain_uk ON user_addresses (user_id, chain, address);
 
 -- Operations table stores the operations of the users in the system
 -- Example: User with ID 1234567890 has deposited 100 USDC to address 0x1234567890123456789012345678901234567890 for Ethereum

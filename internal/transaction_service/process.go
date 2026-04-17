@@ -1,9 +1,12 @@
 package transaction_service
 
 import (
+	errors "errors"
+
 	memorycache "deposit-collector/internal/memory_cache"
 	queue "deposit-collector/internal/queue"
 	system "deposit-collector/internal/system"
+	btc_utils "deposit-collector/pkg/crypto/btc"
 	evm_utils "deposit-collector/pkg/crypto/evm"
 	provider "deposit-collector/pkg/crypto/provider"
 	utils "deposit-collector/pkg/utils"
@@ -78,9 +81,54 @@ func processEVMDepositOperation(
 }
 
 func processBTCDepositOperation(
+	provider provider.BitcoinProvider,
 	operation *queue.DepositOperationEvent,
 ) (*ProcessedDepositOperation, error) {
-	return nil, nil
+	txInfo, err := provider.GetTxInfo(operation.DepositTxHash)
+
+	if err != nil {
+		return nil, err
+	}
+
+	confirmations := txInfo.Confirmations
+
+	if confirmations <= provider.MinConfirmations {
+		return nil, utils.NewCustomError("transaction not confirmed", false)
+	}
+
+	amount := int64(0)
+
+	network := btc_utils.GetNetParamsByNetwork(provider.Network)
+
+	if network == nil {
+		return nil, errors.New("invalid bitcoin network")
+	}
+
+	for _, vout := range txInfo.Vout {
+		addressFromScript, err := btc_utils.GetAddressFromScript(
+			vout.ScriptPubKey.Hex, network,
+		)
+		if err != nil {
+			return nil, err
+		}
+		if addressFromScript == operation.TargetAddress {
+			amount, err = btc_utils.BitcoinToSatoshis(vout.Value)
+			if err != nil {
+				return nil, err
+			}
+			break
+		}
+	}
+
+	// @TODO: check here min deposit value, so we wont process dust amount
+	if amount < 1000 {
+		return nil, errors.New("invalid received amount")
+	}
+
+	return &ProcessedDepositOperation{
+		TokenAddress: "native",
+		Amount:       amount,
+	}, nil
 }
 
 func processSOLDepositOperation(
@@ -102,7 +150,8 @@ func ProcessDepositOperation(
 		evmProvider := providerPool.GetEVMProvider(operation.TargetChainName)
 		return processEVMDepositOperation(chainsCache, evmProvider, operation)
 	case system.ChainPlatformBTC:
-		return processBTCDepositOperation(operation)
+		btcProvider := providerPool.GetBitcoinProvider()
+		return processBTCDepositOperation(*btcProvider, operation)
 	case system.ChainPlatformSOL:
 		return processSOLDepositOperation(operation)
 	}

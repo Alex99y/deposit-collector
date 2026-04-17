@@ -1,7 +1,7 @@
 package users
 
 import (
-	"time"
+	time "time"
 
 	system "deposit-collector/internal/system"
 
@@ -9,11 +9,11 @@ import (
 )
 
 type StoredUser struct {
-	ID         uuid.UUID
-	ExternalID string
-	AccountID  int
-	CreatedAt  time.Time
-	UpdatedAt  time.Time
+	ID         uuid.UUID `json:"userDbId"`
+	ExternalID string    `json:"externalUserId"`
+	AccountID  int       `json:"accountId"`
+	CreatedAt  time.Time `json:"createdAt"`
+	UpdatedAt  time.Time `json:"updatedAt"`
 }
 
 type StoreAddressRequest struct {
@@ -23,10 +23,10 @@ type StoreAddressRequest struct {
 }
 
 type StoredAddress struct {
-	Chain          system.ChainPlatform
-	SequenceNumber int
-	Address        string
-	CreatedAt      time.Time
+	Chain          system.ChainPlatform `json:"chainPlatform"`
+	SequenceNumber int                  `json:"sequenceNumber"`
+	Address        string               `json:"address"`
+	CreatedAt      time.Time            `json:"createdAt"`
 }
 
 type CreateAddressRequest struct {

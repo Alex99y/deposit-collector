@@ -6,7 +6,8 @@ import (
 	io "io"
 	os "os"
 
-	"deposit-collector/internal/system"
+	system "deposit-collector/internal/system"
+	btc_utils "deposit-collector/pkg/crypto/btc"
 	logger "deposit-collector/pkg/logger"
 	utils "deposit-collector/pkg/utils"
 )
@@ -23,6 +24,7 @@ type ProviderConfig struct {
 
 type ProviderPool struct {
 	evmProviders map[string]*EVMProvider
+	btcProvider  map[string]*BitcoinProvider
 }
 
 func (p *ProviderPool) GetEVMProvider(
@@ -31,8 +33,13 @@ func (p *ProviderPool) GetEVMProvider(
 	return p.evmProviders[chainName]
 }
 
+func (p *ProviderPool) GetBitcoinProvider() *BitcoinProvider {
+	return p.btcProvider["bitcoin"]
+}
+
 func NewProviderPool(
 	providerFilePath string,
+	bitcoinNetwork btc_utils.NETWORK,
 	context context.Context,
 	logger *logger.Logger,
 ) *ProviderPool {
@@ -48,7 +55,21 @@ func NewProviderPool(
 			logger,
 		)
 	}
-	return &ProviderPool{evmProviders: evmProvidersMap}
+	btcProviders := providerConfig.Rpc[system.ChainPlatformBTC]
+	btcProvidersMap := make(map[string]*BitcoinProvider)
+	for chainName, rpcConfig := range btcProviders {
+		btcProvidersMap[chainName] = NewBitcoinProvider(
+			rpcConfig.Url,
+			rpcConfig.MinConfirmations,
+			context,
+			bitcoinNetwork,
+			logger,
+		)
+	}
+	return &ProviderPool{
+		evmProviders: evmProvidersMap,
+		btcProvider:  btcProvidersMap,
+	}
 }
 
 func readProviderConfig(

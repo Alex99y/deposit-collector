@@ -93,7 +93,7 @@ func (h *SystemHandler) AddNewSupportedChain(c fiber.Ctx) {
 	err := h.systemService.AddNewSupportedChain(&system.NewSupportedChainRequest{
 		ChainName:     request.ChainName,
 		ChainPlatform: system.ChainPlatform(request.ChainPlatform),
-		EVMChainID:    request.EVMChainID,
+		EVMChainID:    &request.EVMChainID,
 	})
 	if err != nil {
 		_ = utils.NewServerErrorResponse(c, h.logger, err)

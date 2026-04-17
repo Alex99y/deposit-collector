@@ -7,6 +7,7 @@ const (
 	PurposeBTCNativeSegwit = 84
 	CoinTypeBTC            = 0
 	CoinTypeBTCTestnet     = 1
+	CoinTypeBTCLocal       = 1
 
 	// Ethereum
 	PurposeEVM  = 44

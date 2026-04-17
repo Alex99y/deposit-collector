@@ -4,6 +4,7 @@ import (
 	hex "encoding/hex"
 
 	system "deposit-collector/internal/system"
+	btc_utils "deposit-collector/pkg/crypto/btc"
 	crypto "deposit-collector/pkg/crypto/wallet"
 	logger "deposit-collector/pkg/logger"
 	utils "deposit-collector/pkg/utils"
@@ -25,6 +26,7 @@ func (s *WalletServices) GenerateWallet(
 	accountIndex uint32,
 	changeIndex uint32,
 	index uint32,
+	network btc_utils.NETWORK,
 	chain system.ChainPlatform,
 ) (crypto.CryptoWallet, error) {
 	switch chain {
@@ -39,7 +41,7 @@ func (s *WalletServices) GenerateWallet(
 	case system.ChainPlatformBTC:
 		btcWallet, err := crypto.GenerateBitcoinWallet(
 			s.seed,
-			false,
+			network,
 			crypto.PurposeBTCNativeSegwit,
 			accountIndex,
 			changeIndex,

@@ -3,6 +3,7 @@ package users
 import (
 	system "deposit-collector/internal/system"
 	walletservices "deposit-collector/internal/wallet_services"
+	btc_utils "deposit-collector/pkg/crypto/btc"
 	logger "deposit-collector/pkg/logger"
 
 	uuid "github.com/google/uuid"
@@ -26,6 +27,7 @@ func (s *UserService) CreateUser(externalID string) error {
 
 func (s *UserService) GenerateAddress(
 	externalID string,
+	network btc_utils.NETWORK,
 	chain system.ChainPlatform,
 ) (string, error) {
 	address, err := s.usersRepository.StoreAddress(
@@ -35,7 +37,7 @@ func (s *UserService) GenerateAddress(
 		},
 		func(userAccountID uint32, sequenceNumber uint32) (string, error) {
 			wallet, err := s.walletServices.GenerateWallet(
-				userAccountID, 0, sequenceNumber, chain,
+				userAccountID, 0, sequenceNumber, network, chain,
 			)
 			if err != nil {
 				return "", err
