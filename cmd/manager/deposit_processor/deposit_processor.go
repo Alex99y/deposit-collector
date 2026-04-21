@@ -1,4 +1,4 @@
-package depositprocessor
+package deposit_processor
 
 import (
 	context "context"

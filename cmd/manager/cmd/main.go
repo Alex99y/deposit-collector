@@ -9,7 +9,7 @@ import (
 	syscall "syscall"
 
 	config "deposit-collector/cmd/manager/config"
-	worker "deposit-collector/cmd/manager/depositprocessor"
+	worker "deposit-collector/cmd/manager/deposit_processor"
 	memorycache "deposit-collector/internal/memory_cache"
 	system "deposit-collector/internal/system"
 	transaction_service "deposit-collector/internal/transaction_service"

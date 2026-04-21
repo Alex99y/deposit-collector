@@ -1,6 +1,7 @@
 package logger
 
 import (
+	fmt "fmt"
 	slog "log/slog"
 	os "os"
 )
@@ -29,4 +30,8 @@ func (l *Logger) Debug(message string) {
 
 func (l *Logger) Warn(message string) {
 	l.logger.Warn(message)
+}
+
+func (l *Logger) ErrorO(err error) {
+	l.logger.Error(fmt.Sprintf("%v", err))
 }

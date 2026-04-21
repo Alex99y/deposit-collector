@@ -143,8 +143,8 @@ INNER JOIN supported_chains as sc ON ta.chain_id = sc.id
 		q += "WHERE " + strings.Join(where, " AND ") + "\n"
 	}
 
-	if filters.Limit > 100 || filters.Limit < 1 {
-		return nil, errors.New("limit must be between 1 and 100")
+	if filters.Limit < 1 {
+		return nil, errors.New("limit must be greater than 1")
 	} else {
 		args = append(args, filters.Limit)
 		q += fmt.Sprintf("LIMIT $%d\n", len(args))
