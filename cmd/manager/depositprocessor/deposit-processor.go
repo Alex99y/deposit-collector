@@ -1,4 +1,4 @@
-package worker
+package depositprocessor
 
 import (
 	context "context"
@@ -11,43 +11,43 @@ import (
 	utils "deposit-collector/pkg/utils"
 )
 
-type Worker struct {
+type DepositProcessor struct {
 	logger             *logger.Logger
 	transactionService *transaction_service.TransactionService
 	operationsQueue    *queue.OperationQueue
 	id                 int
 }
 
-func (w *Worker) Start(ctx context.Context) {
-	w.logger.Info(fmt.Sprintf("worker %d starting", w.id))
+func (dp *DepositProcessor) RunInBackground(ctx context.Context) {
+	dp.logger.Info(fmt.Sprintf("worker %d starting", dp.id))
 	go func() {
-		err := w.run(ctx)
+		err := dp.run(ctx)
 		if err != nil {
-			w.logger.Error(fmt.Sprintf("error running worker %d: %v", w.id, err))
+			dp.logger.Error(fmt.Sprintf("error running worker %d: %v", dp.id, err))
 		}
 	}()
 }
 
-func (w *Worker) Stop(ctx context.Context) error {
-	w.logger.Info(fmt.Sprintf("worker %d stopping", w.id))
-	return w.operationsQueue.Close()
+func (dp *DepositProcessor) Stop(ctx context.Context) error {
+	dp.logger.Info(fmt.Sprintf("worker %d stopping", dp.id))
+	return dp.operationsQueue.Close()
 }
 
-func (w *Worker) run(ctx context.Context) error {
-	err := w.operationsQueue.Consume(ctx, func(args *queue.OperationConsumerArgs) {
+func (dp *DepositProcessor) run(ctx context.Context) error {
+	err := dp.operationsQueue.Consume(ctx, func(args *queue.OperationConsumerArgs) {
 		operation := args.OperationData()
 		switch parsedOperation := operation.(type) {
 		case queue.DepositOperationEvent:
-			w.logger.Info(
+			dp.logger.Info(
 				"Received deposit operation id: " +
 					args.OperationEvent.RequestId.String(),
 			)
-			err := w.transactionService.ValidateAndStoreDepositOperation(
+			err := dp.transactionService.ValidateAndStoreDepositOperation(
 				&parsedOperation,
 			)
 			if customError, ok := utils.IsCustomError(err); ok {
 				if !customError.IsRetryable() {
-					w.logger.Error(
+					dp.logger.Error(
 						fmt.Sprintf("Error validating and storing deposit operation: %v",
 							customError.Error()),
 					)
@@ -56,7 +56,7 @@ func (w *Worker) run(ctx context.Context) error {
 				}
 			}
 			if err != nil {
-				w.logger.Error(
+				dp.logger.Error(
 					fmt.Sprintf(
 						"Error validating and storing deposit operation: %v",
 						err,
@@ -65,7 +65,7 @@ func (w *Worker) run(ctx context.Context) error {
 				_ = args.Nack()
 				return
 			}
-			w.logger.Info(
+			dp.logger.Info(
 				fmt.Sprintf(
 					"Deposit operation validated and stored: %+v",
 					parsedOperation.DepositTxHash,
@@ -74,14 +74,14 @@ func (w *Worker) run(ctx context.Context) error {
 			_ = args.Ack()
 			return
 		case queue.WithdrawOperationEvent:
-			w.logger.Info(
+			dp.logger.Info(
 				"Received withdraw operation id: " +
 					args.OperationEvent.RequestId.String(),
 			)
 			_ = args.Ack()
 			return
 		default:
-			w.logger.Error(fmt.Sprintf("Unknown operation type: %T", parsedOperation))
+			dp.logger.Error(fmt.Sprintf("Unknown operation type: %T", parsedOperation))
 			_ = args.Nack()
 			return
 		}
@@ -89,12 +89,12 @@ func (w *Worker) run(ctx context.Context) error {
 	return err
 }
 
-func NewWorker(
+func NewDepositProcessor(
 	rmq *rabbitmq.RabbitMQClient,
 	transactionService *transaction_service.TransactionService,
 	id int,
 	logger *logger.Logger,
-) *Worker {
+) *DepositProcessor {
 	if rmq == nil || transactionService == nil || logger == nil {
 		panic("Invalid worker dependencies")
 	}
@@ -111,7 +111,7 @@ func NewWorker(
 		utils.FailOnError(logger, err, "Error creating operations queue")
 	}
 	operationsQueue := queue.NewOperationsQueue(qq, logger)
-	return &Worker{
+	return &DepositProcessor{
 		logger:             logger,
 		transactionService: transactionService,
 		operationsQueue:    operationsQueue,

@@ -136,39 +136,7 @@ updated_at = CURRENT_TIMESTAMP
 		return err
 	}
 
-	err = r.upsertPendingDepositOperation(
-		tx, addressID, tokenAddressID, amount,
-	)
-	if err != nil {
-		return err
-	}
-
 	return tx.Commit()
-}
-
-func (r *TransactionRepository) upsertPendingDepositOperation(
-	tx *sql.Tx,
-	addressID uuid.UUID,
-	tokenAddressID uuid.UUID,
-	accumulatedAmount int64,
-) error {
-	upsertPendingDepositOperationQuery := `
-INSERT INTO pending_deposit_operations (
-address_id, token_address_id, accumulated_amount
-) VALUES ($1, $2, $3)
-ON CONFLICT (address_id, token_address_id) DO UPDATE SET
-accumulated_amount = pending_deposit_operations.accumulated_amount + EXCLUDED.accumulated_amount,
-updated_at = CURRENT_TIMESTAMP
-WHERE pending_deposit_operations.address_id = $1
-	AND pending_deposit_operations.token_address_id = $2
-`
-	_, err := tx.Exec(
-		upsertPendingDepositOperationQuery,
-		addressID,
-		tokenAddressID,
-		accumulatedAmount,
-	)
-	return err
 }
 
 func NewTransactionRepository(db *sql.DB) *TransactionRepository {

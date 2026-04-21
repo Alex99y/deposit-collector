@@ -9,7 +9,7 @@ import (
 	syscall "syscall"
 
 	config "deposit-collector/cmd/manager/config"
-	worker "deposit-collector/cmd/manager/worker"
+	worker "deposit-collector/cmd/manager/depositprocessor"
 	memorycache "deposit-collector/internal/memory_cache"
 	system "deposit-collector/internal/system"
 	transaction_service "deposit-collector/internal/transaction_service"
@@ -72,13 +72,13 @@ func main() {
 
 	logger.Info(fmt.Sprintf("starting manager with workers=%d", maxWorkers))
 
-	workers := make([]*worker.Worker, maxWorkers)
+	workers := make([]*worker.DepositProcessor, maxWorkers)
 	for i := 0; i < maxWorkers; i++ {
-		workers[i] = worker.NewWorker(rmq, transactionService, i, logger)
+		workers[i] = worker.NewDepositProcessor(rmq, transactionService, i, logger)
 	}
 
 	for _, worker := range workers {
-		worker.Start(ctx)
+		worker.RunInBackground(ctx)
 		defer func() {
 			_ = worker.Stop(ctx)
 		}()
