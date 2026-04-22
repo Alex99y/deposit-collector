@@ -111,10 +111,11 @@ CREATE TABLE operations (
     type operation_type NOT NULL,
     created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
     processed_at TIMESTAMPTZ NULL,
+    processed_tx_hash VARCHAR(100) NULL,
     tx_hash VARCHAR(100) NOT NULL
 );
 
 CREATE UNIQUE INDEX idx_operations_user_created ON operations (user_id, created_at DESC);
-CREATE INDEX idx_operations_unprocessed ON operations (token_address_id, amount DESC)
-    WHERE processed_at IS NULL;
+CREATE INDEX idx_deposit_operations_unprocessed ON operations (type,token_address_id, amount DESC)
+    WHERE type = 'deposit' AND processed_at IS NULL;
 CREATE UNIQUE INDEX idx_operations_tx_hash ON operations (tx_hash);

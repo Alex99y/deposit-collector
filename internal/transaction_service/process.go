@@ -112,16 +112,16 @@ func processBTCDepositOperation(
 			return nil, err
 		}
 		if addressFromScript == operation.TargetAddress {
-			amount, err = btc_utils.BitcoinToSatoshis(vout.Value)
+			satoshis, err := btc_utils.BitcoinToSatoshis(vout.Value)
 			if err != nil {
 				return nil, err
 			}
-			break
+			amount += satoshis
 		}
 	}
 
 	// @TODO: check here min deposit value, so we wont process dust amount
-	if amount < 1000 {
+	if amount < 10000 {
 		return nil, errors.New("invalid received amount")
 	}
 
@@ -148,9 +148,15 @@ func ProcessDepositOperation(
 	switch chainPlatform {
 	case system.ChainPlatformEVM:
 		evmProvider := providerPool.GetEVMProvider(operation.TargetChainName)
+		if evmProvider == nil {
+			return nil, utils.NewCustomError("provider not found", false)
+		}
 		return processEVMDepositOperation(chainsCache, evmProvider, operation)
 	case system.ChainPlatformBTC:
 		btcProvider := providerPool.GetBitcoinProvider()
+		if btcProvider == nil {
+			return nil, utils.NewCustomError("provider not found", false)
+		}
 		return processBTCDepositOperation(*btcProvider, operation)
 	case system.ChainPlatformSOL:
 		return processSOLDepositOperation(operation)

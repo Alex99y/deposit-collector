@@ -167,6 +167,39 @@ func (p *BitcoinProvider) GetTxInfo(txHash string) (*TxInfoResponse, error) {
 	return &txInfo, nil
 }
 
+func (p *BitcoinProvider) GetMinFeePerKB(block int) (float64, error) {
+	resp, err := p.electrumClient.Request(Request{
+		ID:     time.Now().Unix(),
+		Method: "blockchain.estimatefee",
+		Params: []interface{}{block},
+	})
+
+	if err != nil {
+		return 0, err
+	}
+
+	var minRelayFee float64
+	if err = json.Unmarshal(resp.Result, &minRelayFee); err != nil {
+		return 0, err
+	}
+
+	return minRelayFee, nil
+}
+
+func (p *BitcoinProvider) BroadcastTransaction(txHex string) (string, error) {
+	resp, err := p.electrumClient.Request(Request{
+		ID:     time.Now().Unix(),
+		Method: "blockchain.transaction.broadcast",
+		Params: []interface{}{txHex},
+	})
+
+	if err != nil {
+		return "", err
+	}
+
+	return string(resp.Result), nil
+}
+
 func NewBitcoinProvider(
 	url string,
 	minConfirmations int,

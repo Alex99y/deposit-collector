@@ -71,7 +71,9 @@ func GenerateSolanaWallet(
 	changeIndex uint32,
 	index uint32,
 ) (*SolanaWallet, error) {
-	pathStruct := NewBIP44(PurposeSOL, CoinTypeSOL, accountIndex, changeIndex, index)
+	pathStruct := NewBIP44(
+		PurposeSOL, CoinTypeSOL, accountIndex, changeIndex, index,
+	)
 	path := pathStruct.GeneratePath()
 	// 4-level path: purpose / coin_type / account / change
 	privateKey, err := deriveSolanaKey(

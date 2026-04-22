@@ -9,10 +9,12 @@ import (
 	syscall "syscall"
 
 	config "deposit-collector/cmd/manager/config"
+	deposit_collector "deposit-collector/cmd/manager/deposit_collector"
 	worker "deposit-collector/cmd/manager/deposit_processor"
 	memorycache "deposit-collector/internal/memory_cache"
 	system "deposit-collector/internal/system"
 	transaction_service "deposit-collector/internal/transaction_service"
+	walletservices "deposit-collector/internal/wallet_services"
 	provider "deposit-collector/pkg/crypto/provider"
 	logger "deposit-collector/pkg/logger"
 	postgresql "deposit-collector/pkg/postgresql"
@@ -83,6 +85,26 @@ func main() {
 			_ = worker.Stop(ctx)
 		}()
 	}
+
+	walletServices := walletservices.NewWalletServices(
+		managerConfig.WalletSeed, logger,
+	)
+
+	depositCollector, err := deposit_collector.NewDepositCollector(
+		ctx,
+		providerPool,
+		managerConfig.DepositCollectorDestinationAddresses,
+		systemRepository,
+		transactionRepository,
+		walletServices,
+		logger,
+	)
+
+	err = depositCollector.Start()
+	if err != nil {
+		utils.FailOnError(logger, err, "Error starting deposit collector")
+	}
+	defer depositCollector.Stop()
 
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)

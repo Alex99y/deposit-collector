@@ -1,6 +1,7 @@
 package wallet
 
 import (
+	bytes "bytes"
 	hex "encoding/hex"
 	fmt "fmt"
 
@@ -10,6 +11,8 @@ import (
 	btcutil "github.com/btcsuite/btcd/btcutil"
 	hdkeychain "github.com/btcsuite/btcd/btcutil/hdkeychain"
 	chaincfg "github.com/btcsuite/btcd/chaincfg"
+	txscript "github.com/btcsuite/btcd/txscript"
+	wire "github.com/btcsuite/btcd/wire"
 )
 
 /**
@@ -27,12 +30,82 @@ type BitcoinWallet struct {
 	WIF        string
 }
 
+type BitcoinTransactionInput struct {
+	Index      int
+	AmountSats int64
+}
+
 func (b *BitcoinWallet) GetAddress() string {
 	return b.Address
 }
 
 func (b *BitcoinWallet) SignMessage(message string) ([]byte, error) {
 	return nil, nil
+}
+
+func (b *BitcoinWallet) SignTransactionInputs(
+	tx wire.MsgTx,
+	network btc_utils.NETWORK,
+	inputs []BitcoinTransactionInput,
+) (*wire.MsgTx, error) {
+
+	netParams := btc_utils.GetNetParamsByNetwork(network)
+	if netParams == nil {
+		return nil, utils.NewError("invalid bitcoin network")
+	}
+
+	wif, err := btcutil.DecodeWIF(b.WIF)
+	if err != nil {
+		return nil, err
+	}
+
+	address, err := btcutil.DecodeAddress(b.Address, netParams)
+	if err != nil {
+		return nil, err
+	}
+	pkScript, err := txscript.PayToAddrScript(address)
+	if err != nil {
+		return nil, err
+	}
+
+	prevOutFetcher := txscript.NewMultiPrevOutFetcher(nil)
+	for _, input := range inputs {
+		if input.Index < 0 || input.Index >= len(tx.TxIn) {
+			return nil, utils.NewError("invalid tx input index")
+		}
+		prevOut := tx.TxIn[input.Index].PreviousOutPoint
+		prevOutFetcher.AddPrevOut(
+			prevOut,
+			&wire.TxOut{
+				Value:    input.AmountSats,
+				PkScript: pkScript,
+			},
+		)
+	}
+
+	sigHashes := txscript.NewTxSigHashes(&tx, prevOutFetcher)
+	for _, input := range inputs {
+		witness, err := txscript.WitnessSignature(
+			&tx,
+			sigHashes,
+			input.Index,
+			input.AmountSats,
+			pkScript,
+			txscript.SigHashAll,
+			wif.PrivKey,
+			true,
+		)
+		if err != nil {
+			return nil, err
+		}
+		tx.TxIn[input.Index].Witness = witness
+	}
+
+	var signedTxBuffer bytes.Buffer
+	if err := tx.Serialize(&signedTxBuffer); err != nil {
+		return nil, err
+	}
+	return &tx, nil
 }
 
 func GenerateBitcoinWallet(
@@ -43,7 +116,6 @@ func GenerateBitcoinWallet(
 	changeIndex uint32,
 	index uint32,
 ) (*BitcoinWallet, error) {
-
 	params := btc_utils.GetNetParamsByNetwork(network)
 	coinType := params.HDCoinType
 	if purpose == PurposeBTCNativeSegwit {

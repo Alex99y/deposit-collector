@@ -1,10 +1,10 @@
 package transaction_service
 
 import (
-	"database/sql"
-	"time"
+	sql "database/sql"
+	time "time"
 
-	"github.com/google/uuid"
+	uuid "github.com/google/uuid"
 )
 
 type TransactionRepository struct {
@@ -137,6 +137,110 @@ updated_at = CURRENT_TIMESTAMP
 	}
 
 	return tx.Commit()
+}
+
+func (r *TransactionRepository) GetUnprocessedDepositsByTokenAddressID(
+	tokenAddressID uuid.UUID,
+	limit int,
+) ([]PendingDepositOperation, error) {
+	q := `
+SELECT o.id, o.amount, o.tx_hash, ua.address, ua.sequence_number, u.account_id
+FROM operations o
+JOIN user_addresses ua ON o.address_id = ua.id
+JOIN users u ON o.user_id = u.id
+WHERE o.token_address_id = $1 AND o.type = 'deposit' AND o.processed_at IS NULL
+ORDER BY o.amount DESC
+LIMIT $2
+`
+
+	rows, err := r.db.Query(q, tokenAddressID, limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	operations := make([]PendingDepositOperation, 0)
+	for rows.Next() {
+		var operation PendingDepositOperation
+		err := rows.Scan(
+			&operation.ID,
+			&operation.Amount,
+			&operation.TxHash,
+			&operation.Address,
+			&operation.SequenceNumber,
+			&operation.AccountID,
+		)
+		if err != nil {
+			return nil, err
+		}
+		operations = append(operations, operation)
+	}
+
+	return operations, nil
+}
+
+func (r *TransactionRepository) GetGroupedUnprocessedDepositsByTokenAddressID(
+	tokenAddressID uuid.UUID,
+	limit int,
+) ([]GroupedPendingDepositOperation, error) {
+	q := `SELECT
+    u.account_id,
+    ua.address,
+	ua.sequence_number,
+    SUM(o.amount) AS amount,
+    ARRAY_AGG(o.id) AS operation_ids
+FROM operations o
+JOIN users u ON u.id = o.user_id
+JOIN user_addresses ua ON ua.id = o.address_id
+WHERE
+    o.type = 'deposit'
+    AND o.token_address_id = $1
+    AND o.processed_at IS NULL
+ORDER BY o.amount DESC
+GROUP BY
+    o.token_address_id
+LIMIT $2;`
+
+	rows, err := r.db.Query(q, tokenAddressID, limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	operations := make([]GroupedPendingDepositOperation, 0)
+	for rows.Next() {
+		var operation GroupedPendingDepositOperation
+		err := rows.Scan(
+			&operation.AccountID,
+			&operation.Address,
+			&operation.SequenceNumber,
+			&operation.Amount,
+			&operation.OperationIDs,
+		)
+		if err != nil {
+			return nil, err
+		}
+		operations = append(operations, operation)
+	}
+
+	return operations, nil
+}
+
+func (r *TransactionRepository) MarkOperationAsProcessed(
+	operationIDs []uuid.UUID,
+	processedTxHash string,
+) error {
+	q := `UPDATE operations
+SET
+    processed_at = NOW(),
+    processed_tx_hash = $2
+WHERE id = ANY($1::uuid[]);`
+
+	_, err := r.db.Exec(q, operationIDs, processedTxHash)
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 func NewTransactionRepository(db *sql.DB) *TransactionRepository {

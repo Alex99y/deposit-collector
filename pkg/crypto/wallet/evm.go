@@ -50,7 +50,9 @@ func GenerateEvmWallet(
 	changeIndex uint32,
 	index uint32,
 ) (*EvmWallet, error) {
-	pathStruct := NewBIP44(PurposeEVM, CoinTypeEVM, accountIndex, changeIndex, index)
+	pathStruct := NewBIP44(
+		PurposeEVM, CoinTypeEVM, accountIndex, changeIndex, index,
+	)
 	path := pathStruct.GeneratePath()
 
 	masterKey, err := hdkeychain.NewMaster(seed, &chaincfg.MainNetParams)
