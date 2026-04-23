@@ -23,19 +23,35 @@ func (w *Worker) Start() error {
 	if w.isRunning {
 		return errors.New("worker is already running")
 	}
+	w.hasStopped = false
 	w.isRunning = true
 	w.logger.Info(fmt.Sprintf("worker %s starting", w.id))
 
 	go func() {
+		defer func() {
+			w.hasStopped = true
+		}()
+
 		for {
+			select {
+			case <-w.ctx.Done():
+				return
+			default:
+			}
+
 			if !w.isRunning {
-				w.hasStopped = true
-				break
+				return
 			}
 
 			w.run()
 
-			time.Sleep(time.Duration(w.interval) * time.Second)
+			timer := time.NewTimer(time.Duration(w.interval) * time.Second)
+			select {
+			case <-w.ctx.Done():
+				timer.Stop()
+				return
+			case <-timer.C:
+			}
 		}
 	}()
 
@@ -45,13 +61,18 @@ func (w *Worker) Start() error {
 func (w *Worker) Stop() error {
 	w.logger.Info(fmt.Sprintf("stopping worker %s...", w.id))
 	w.isRunning = false
+
 	for {
 		if w.hasStopped {
-			break
+			return nil
 		}
-		time.Sleep(time.Duration(1) * time.Second)
+		select {
+		case <-w.ctx.Done():
+			time.Sleep(100 * time.Millisecond)
+		default:
+			time.Sleep(100 * time.Millisecond)
+		}
 	}
-	return nil
 }
 
 func NewWorker(

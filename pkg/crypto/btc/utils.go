@@ -20,7 +20,8 @@ const (
 )
 
 const (
-	ONE_BITCOIN_IN_SATS = 100_000_000
+	ONE_BITCOIN_IN_SATS    = 100_000_000
+	MIN_FEE_PER_KB_IN_SATS = 1000
 )
 
 func BitcoinToSatoshis(amount float64) (int64, error) {

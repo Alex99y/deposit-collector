@@ -81,9 +81,6 @@ func main() {
 
 	for _, worker := range workers {
 		worker.RunInBackground(ctx)
-		defer func() {
-			_ = worker.Stop(ctx)
-		}()
 	}
 
 	walletServices := walletservices.NewWalletServices(
@@ -99,12 +96,13 @@ func main() {
 		walletServices,
 		logger,
 	)
-
-	err = depositCollector.Start()
 	if err != nil {
+		utils.FailOnError(logger, err, "Error creating deposit collector")
+	}
+
+	if err := depositCollector.Start(); err != nil {
 		utils.FailOnError(logger, err, "Error starting deposit collector")
 	}
-	defer depositCollector.Stop()
 
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
@@ -113,7 +111,13 @@ func main() {
 	select {
 	case sig := <-quit:
 		logger.Info(fmt.Sprintf("shutdown manager ... signal=%s", sig))
+		cancel()
 	case <-ctx.Done():
 		logger.Info("manager exiting")
+	}
+
+	depositCollector.Stop()
+	for _, worker := range workers {
+		_ = worker.Stop(ctx)
 	}
 }

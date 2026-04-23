@@ -30,16 +30,30 @@ type Response struct {
 	Error  interface{}     `json:"error"`
 }
 
-func (c *ElectrumClient) Request(req Request) (*Response, error) {
+func (c *ElectrumClient) RequestWithContext(
+	ctx context.Context,
+	req Request,
+) (*Response, error) {
 	splittedUrl := strings.Split(c.url, "//")
-	conn, err := net.DialTimeout("tcp", splittedUrl[1], 5*time.Second)
+	dialer := net.Dialer{Timeout: 5 * time.Second}
+	conn, err := dialer.DialContext(ctx, "tcp", splittedUrl[1])
 	if err != nil {
 		return nil, err
 	}
 
 	defer conn.Close()
 
+	go func() {
+		<-ctx.Done()
+		_ = conn.SetDeadline(time.Now())
+	}()
+
+	_ = conn.SetDeadline(time.Now().Add(10 * time.Second))
+
 	payload, err := json.Marshal(req)
+	if err != nil {
+		return nil, err
+	}
 
 	_, err = conn.Write(append(payload, '\n'))
 	if err != nil {
@@ -130,7 +144,7 @@ type ScriptSig struct {
 }
 
 func (p *BitcoinProvider) GetLatestBlockNumber() (uint64, error) {
-	resp, err := p.electrumClient.Request(Request{
+	resp, err := p.electrumClient.RequestWithContext(p.context, Request{
 		ID:     time.Now().Unix(),
 		Method: "blockchain.headers.subscribe",
 		Params: []interface{}{},
@@ -149,7 +163,7 @@ func (p *BitcoinProvider) GetLatestBlockNumber() (uint64, error) {
 }
 
 func (p *BitcoinProvider) GetTxInfo(txHash string) (*TxInfoResponse, error) {
-	resp, err := p.electrumClient.Request(Request{
+	resp, err := p.electrumClient.RequestWithContext(p.context, Request{
 		ID:     time.Now().Unix(),
 		Method: "blockchain.transaction.get",
 		Params: []interface{}{txHash, true},
@@ -168,7 +182,7 @@ func (p *BitcoinProvider) GetTxInfo(txHash string) (*TxInfoResponse, error) {
 }
 
 func (p *BitcoinProvider) GetMinFeePerKB(block int) (float64, error) {
-	resp, err := p.electrumClient.Request(Request{
+	resp, err := p.electrumClient.RequestWithContext(p.context, Request{
 		ID:     time.Now().Unix(),
 		Method: "blockchain.estimatefee",
 		Params: []interface{}{block},
@@ -187,7 +201,7 @@ func (p *BitcoinProvider) GetMinFeePerKB(block int) (float64, error) {
 }
 
 func (p *BitcoinProvider) BroadcastTransaction(txHex string) (string, error) {
-	resp, err := p.electrumClient.Request(Request{
+	resp, err := p.electrumClient.RequestWithContext(p.context, Request{
 		ID:     time.Now().Unix(),
 		Method: "blockchain.transaction.broadcast",
 		Params: []interface{}{txHex},

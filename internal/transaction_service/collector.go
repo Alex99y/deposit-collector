@@ -53,6 +53,10 @@ func collectBTCUnprocessedDeposits(
 		// Up to 10 inputs per transaction
 		10,
 	)
+
+	if len(operations) == 0 {
+		return nil, nil
+	}
 	if err != nil {
 		return nil, err
 	}
@@ -139,6 +143,10 @@ func collectBTCUnprocessedDeposits(
 	minFeePerKbInSats, err := btc_utils.BitcoinToSatoshis(minFeePerKB)
 	if err != nil {
 		return nil, err
+	}
+
+	if minFeePerKbInSats < btc_utils.MIN_FEE_PER_KB_IN_SATS {
+		minFeePerKbInSats = btc_utils.MIN_FEE_PER_KB_IN_SATS
 	}
 	satPerVByte := float64(minFeePerKbInSats) / 1000
 	totalTxFeeInSats, err := btc_utils.CalculateFee(

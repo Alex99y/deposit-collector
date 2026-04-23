@@ -196,9 +196,11 @@ WHERE
     o.type = 'deposit'
     AND o.token_address_id = $1
     AND o.processed_at IS NULL
-ORDER BY o.amount DESC
 GROUP BY
-    o.token_address_id
+    u.account_id,
+    ua.address,
+	ua.sequence_number
+ORDER BY amount DESC
 LIMIT $2;`
 
 	rows, err := r.db.Query(q, tokenAddressID, limit)

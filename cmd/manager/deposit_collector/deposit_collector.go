@@ -43,6 +43,9 @@ func (w *DepositCollectorWorker) ProcessSetledDeposits() {
 			w.logger.ErrorO(err)
 			continue
 		}
+		if result == nil {
+			continue
+		}
 		if result.TxHash != "" {
 			w.logger.Info(
 				fmt.Sprintf(
@@ -70,7 +73,7 @@ type DepositCollector struct {
 	transactionRepository       *transaction_service.TransactionRepository
 	walletServices              *walletservices.WalletServices
 	providerPool                *provider.ProviderPool
-	workers                     []worker.Worker
+	workers                     []*worker.Worker
 }
 
 func (dc *DepositCollector) Start() error {
@@ -84,6 +87,7 @@ func (dc *DepositCollector) Start() error {
 		tokens, err := dc.systemRepository.GetTokenAddresses(
 			system.GetTokenAddressesRequest{
 				Chain: &chain.ChainName,
+				Limit: 10000,
 			},
 		)
 		if err != nil {
@@ -95,6 +99,7 @@ func (dc *DepositCollector) Start() error {
 			tokens:                      tokens,
 			destinationDepositAddresses: dc.destinationDepositAddresses,
 			transactionRepository:       dc.transactionRepository,
+			walletServices:              dc.walletServices,
 			providerPool:                dc.providerPool,
 			logger:                      dc.logger,
 		}
@@ -111,7 +116,7 @@ func (dc *DepositCollector) Start() error {
 		if err != nil {
 			return err
 		}
-		dc.workers = append(dc.workers, *worker)
+		dc.workers = append(dc.workers, worker)
 	}
 
 	return nil
@@ -147,6 +152,6 @@ func NewDepositCollector(
 		providerPool:                providerPool,
 		transactionRepository:       transactionRepository,
 		walletServices:              walletServices,
-		workers:                     make([]worker.Worker, 0),
+		workers:                     make([]*worker.Worker, 0),
 	}, nil
 }

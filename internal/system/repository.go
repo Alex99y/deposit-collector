@@ -19,7 +19,7 @@ func (r *SystemRepository) GetSupportedChains() ([]SupportedChain, error) {
 	var chains []SupportedChain
 
 	q := `
-SELECT chain_name, chain_platform, evm_chain_id
+SELECT id, chain_name, chain_platform, evm_chain_id
 FROM supported_chains
 `
 
@@ -32,6 +32,7 @@ FROM supported_chains
 	for rows.Next() {
 		var chain SupportedChain
 		err := rows.Scan(
+			&chain.ChainDbID,
 			&chain.ChainName,
 			&chain.ChainPlatform,
 			&chain.EVMChainID,
