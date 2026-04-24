@@ -14,9 +14,9 @@ Incoming deposits are handled by a module called `Manager`, which validates and 
 
 ## Index
 
-[Configuration](./docs/configs.md)
-[Improvements](./docs/improvements.md)
-[TODO](./docs/todo.md)
+[Configuration](./docs/configs.md)  
+[Improvements](./docs/improvements.md)  
+[TODO](./docs/todo.md)  
 
 ## Software Requirements
 - Go (>= 1.25.7)
