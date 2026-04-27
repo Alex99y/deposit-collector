@@ -67,6 +67,10 @@ var (
 	ErrInvalidLabelSet         = errors.New("invalid label set")
 )
 
+func NewPrometheusRegistry() *prometheus.Registry {
+	return prometheus.NewRegistry()
+}
+
 func NewPrometheusMetrics(config PrometheusMetricsConfig) *PrometheusMetrics {
 	registerer := config.Registerer
 	if registerer == nil {
@@ -81,6 +85,10 @@ func NewPrometheusMetrics(config PrometheusMetricsConfig) *PrometheusMetrics {
 		gauges:     map[string]*GaugeMetric{},
 		histograms: map[string]*HistogramMetric{},
 	}
+}
+
+func (m *PrometheusMetrics) GetRegistry() *prometheus.Registry {
+	return m.registerer.(*prometheus.Registry)
 }
 
 func (m *PrometheusMetrics) RegisterCounter(

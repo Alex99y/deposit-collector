@@ -1,22 +1,27 @@
 package middlewares
 
 import (
-	"fmt"
-	"time"
+	fmt "fmt"
+	strconv "strconv"
 
+	metrics "deposit-collector/internal/metrics"
 	logger "deposit-collector/pkg/logger"
+	observability "deposit-collector/pkg/observability"
 
 	fiber "github.com/gofiber/fiber/v3"
 	requestid "github.com/gofiber/fiber/v3/middleware/requestid"
 )
 
-func AccessLog(logger *logger.Logger) fiber.Handler {
+func AccessLog(
+	metrics *metrics.Metrics,
+	logger *logger.Logger,
+) fiber.Handler {
 	return func(c fiber.Ctx) error {
-		start := time.Now()
+		stopTimer := observability.StartTimer()
 		err := c.Next()
 
 		status := c.Response().StatusCode()
-		lat := time.Since(start)
+		lat := stopTimer()
 
 		if err != nil {
 			if fe, ok := err.(*fiber.Error); ok {
@@ -36,6 +41,16 @@ func AccessLog(logger *logger.Logger) fiber.Handler {
 				c.IP(),
 				requestid.FromContext(c),
 			))
+
+		_ = metrics.IncrementAPIRequestsCount(
+			c.Method(), c.FullPath(),
+		)
+		_ = metrics.ObserveAPIRequestsDuration(
+			c.FullPath(), strconv.Itoa(status), lat,
+		)
+		_ = metrics.IncrementAPIRequestsStatus(
+			c.Method(), c.FullPath(), strconv.Itoa(status),
+		)
 
 		return err
 	}

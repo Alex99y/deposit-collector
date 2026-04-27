@@ -12,7 +12,7 @@ import (
 	logger "deposit-collector/pkg/logger"
 
 	fiber "github.com/gofiber/fiber/v3"
-	"github.com/gofiber/fiber/v3/middleware/requestid"
+	requestid "github.com/gofiber/fiber/v3/middleware/requestid"
 	uuid "github.com/google/uuid"
 )
 
