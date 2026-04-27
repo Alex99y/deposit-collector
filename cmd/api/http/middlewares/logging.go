@@ -42,6 +42,11 @@ func AccessLog(
 				requestid.FromContext(c),
 			))
 
+		// Avoid metrics for invalid requests
+		if status == fiber.StatusNotFound || status == fiber.StatusMethodNotAllowed {
+			return err
+		}
+
 		_ = metrics.IncrementAPIRequestsCount(
 			c.Method(), c.FullPath(),
 		)
