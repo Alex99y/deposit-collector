@@ -49,7 +49,7 @@ func GetEnvOrThrow(logger *logger.Logger, env string) string {
 
 func GetCommonConfig(logger *logger.Logger) *CommonConfig {
 	loadEnvFile(logger)
-	metricsPort, err := strconv.Atoi(GetEnvOrDefault(MetricsPort, "9090"))
+	metricsPort, err := strconv.Atoi(GetEnvOrDefault(MetricsPort, "2112"))
 	if err != nil {
 		utils.FailOnError(
 			logger,

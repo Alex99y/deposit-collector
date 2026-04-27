@@ -6,17 +6,19 @@ import (
 	os "os"
 	signal "os/signal"
 	syscall "syscall"
-	"time"
+	time "time"
 
 	config "deposit-collector/cmd/api/config"
 	http "deposit-collector/cmd/api/http"
 	handlers "deposit-collector/cmd/api/http/handlers"
 	worker "deposit-collector/cmd/api/worker"
 	memorycache "deposit-collector/internal/memory_cache"
+	metrics "deposit-collector/internal/metrics"
 	system "deposit-collector/internal/system"
 	users "deposit-collector/internal/users"
 	walletservices "deposit-collector/internal/wallet_services"
 	logger "deposit-collector/pkg/logger"
+	observability "deposit-collector/pkg/observability"
 	postgresql "deposit-collector/pkg/postgresql"
 	utils "deposit-collector/pkg/utils"
 )
@@ -24,17 +26,37 @@ import (
 func main() {
 	logger := logger.NewLogger()
 
+	// Read config from env
 	apiConfig := config.GetAPIConfig(logger)
 
 	appCtx, appCancel := context.WithCancel(context.Background())
 	defer appCancel()
 
+	// Setup postgres connection
 	db, err := postgresql.SetupPostgresConnection(apiConfig.PostgresURL)
 	if err != nil {
 		utils.FailOnError(logger, err, "error setting up postgres connection")
 	}
 	defer db.Close()
 
+	promRegistry := observability.NewPrometheusRegistry()
+
+	promMetrics := observability.NewPrometheusMetrics(
+		observability.PrometheusMetricsConfig{
+			Registerer: promRegistry,
+		},
+	)
+
+	if promMetrics == nil {
+		utils.FailOnError(logger, err, "error creating prometheus metrics")
+	}
+
+	metrics, err := metrics.NewMetrics(promMetrics)
+	if err != nil {
+		utils.FailOnError(logger, err, "error creating metrics")
+	}
+
+	// Setup API services
 	walletService := walletservices.NewWalletServices(
 		apiConfig.WalletSeed, logger,
 	)
@@ -66,7 +88,29 @@ func main() {
 		Logger:        logger,
 		UsersHandler:  usersHandler,
 		SystemHandler: systemHandler,
+		Metrics:       metrics,
 	}
+
+	// Setup HTTP servers
+	promServer := observability.NewPrometheusServer(
+		apiConfig.MetricsPort,
+		promMetrics,
+		logger,
+	)
+
+	if promServer == nil {
+		utils.FailOnError(logger, err, "error creating prometheus server")
+	}
+
+	err = promServer.Start()
+	if err != nil {
+		utils.FailOnError(logger, err, "error starting prometheus server")
+	}
+	defer func() {
+		if err := promServer.Stop(); err != nil {
+			logger.Error(fmt.Sprintf("error stopping prometheus server: %v", err))
+		}
+	}()
 
 	server := http.NewServer(serverDependencies)
 

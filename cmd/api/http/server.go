@@ -14,6 +14,7 @@ import (
 	handlers "deposit-collector/cmd/api/http/handlers"
 	middlewares "deposit-collector/cmd/api/http/middlewares"
 	validations "deposit-collector/cmd/api/http/validations"
+	metrics "deposit-collector/internal/metrics"
 	logger "deposit-collector/pkg/logger"
 )
 
@@ -31,6 +32,7 @@ func (s *Server) Start(port int, host string) error {
 
 type ServerDependencies struct {
 	Logger        *logger.Logger
+	Metrics       *metrics.Metrics
 	UsersHandler  *handlers.UserHandler
 	SystemHandler *handlers.SystemHandler
 }
@@ -39,7 +41,7 @@ func NewServer(dependencies ServerDependencies) *Server {
 	app := fiber.New(fiber.Config{
 		StructValidator: validations.NewStructValidator(),
 	})
-	app.Use(middlewares.AccessLog(dependencies.Logger))
+	app.Use(middlewares.AccessLog(dependencies.Metrics, dependencies.Logger))
 	app.Use(requestid.New(requestid.Config{
 		Generator: func() string {
 			return uuid.New().String()
