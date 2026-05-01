@@ -2,6 +2,7 @@ package transaction_service
 
 import (
 	errors "errors"
+	big "math/big"
 
 	memorycache "deposit-collector/internal/memory_cache"
 	queue "deposit-collector/internal/queue"
@@ -56,7 +57,10 @@ func processEVMDepositOperation(
 			return nil, utils.NewCustomError("no ERC20 transfer found", false)
 		}
 		tokenAddress = transfers[0].Token.Hex()
-		amount = transfers[0].Value.Int64()
+		amount, err = erc20TransferAmountToInt64(transfers[0].Value)
+		if err != nil {
+			return nil, err
+		}
 		txTargetAddress = transfers[0].To.Hex()
 
 		tokenAddressInfo := chainsCache.GetTokenByChainNameAndTokenAddress(
@@ -78,6 +82,16 @@ func processEVMDepositOperation(
 		TokenAddress: tokenAddress,
 		Amount:       amount,
 	}, nil
+}
+
+func erc20TransferAmountToInt64(amount *big.Int) (int64, error) {
+	if amount == nil || amount.Sign() <= 0 {
+		return 0, utils.NewCustomError("invalid ERC20 transfer amount", false)
+	}
+	if !amount.IsInt64() {
+		return 0, utils.NewCustomError("ERC20 transfer amount exceeds supported range", false)
+	}
+	return amount.Int64(), nil
 }
 
 func processBTCDepositOperation(
