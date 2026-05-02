@@ -54,11 +54,11 @@ func collectBTCUnprocessedDeposits(
 		10,
 	)
 
-	if len(operations) == 0 {
-		return nil, nil
-	}
 	if err != nil {
 		return nil, err
+	}
+	if len(operations) == 0 {
+		return nil, nil
 	}
 
 	network := btc_utils.GetNetParamsByNetwork(provider.Network)

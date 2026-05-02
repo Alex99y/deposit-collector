@@ -41,11 +41,16 @@ func (c *ElectrumClient) RequestWithContext(
 		return nil, err
 	}
 
+	done := make(chan struct{})
+	defer close(done)
 	defer conn.Close()
 
 	go func() {
-		<-ctx.Done()
-		_ = conn.SetDeadline(time.Now())
+		select {
+		case <-ctx.Done():
+			_ = conn.SetDeadline(time.Now())
+		case <-done:
+		}
 	}()
 
 	_ = conn.SetDeadline(time.Now().Add(10 * time.Second))
