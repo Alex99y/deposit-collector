@@ -7,6 +7,8 @@ import (
 	"github.com/google/uuid"
 )
 
+var ErrUnknownOperationType = errors.New("unknown operation type")
+
 type QueueName string
 type OperationType string
 
@@ -56,5 +58,5 @@ func UnmarshalOperationData(operationEvent OperationEvent) (any, error) {
 		}
 		return withdrawOperation, nil
 	}
-	return nil, errors.New("unknown operation type")
+	return nil, ErrUnknownOperationType
 }

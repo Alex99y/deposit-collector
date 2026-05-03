@@ -14,12 +14,8 @@ type OperationConsumerArgs struct {
 	OperationEvent OperationEvent
 }
 
-func (a *OperationConsumerArgs) OperationData() any {
-	operation, err := UnmarshalOperationData(a.OperationEvent)
-	if err != nil {
-		return nil
-	}
-	return operation
+func (a *OperationConsumerArgs) OperationData() (any, error) {
+	return UnmarshalOperationData(a.OperationEvent)
 }
 
 type OperationQueue struct {
@@ -51,6 +47,7 @@ func (q *OperationQueue) Consume(
 		err := json.Unmarshal(args.RawMessage(), &operationEvent)
 		if err != nil {
 			q.logger.Error(fmt.Sprintf("error unmarshalling operation event: %v", err))
+			_ = args.Reject()
 			return
 		}
 		callback(&OperationConsumerArgs{
