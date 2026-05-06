@@ -14,8 +14,8 @@ import (
 )
 
 type SystemRepository struct {
-	db            *sql.DB
-	systemMetrics *metrics.SystemMetrics
+	db                *sql.DB
+	repositoryMetrics *metrics.RepositoryMetrics
 }
 
 func (r *SystemRepository) observeQueryMetrics(
@@ -23,11 +23,11 @@ func (r *SystemRepository) observeQueryMetrics(
 	status metrics.QueryStatus,
 	stopTimer observability.StopTimer,
 ) {
-	if r.systemMetrics == nil {
+	if r.repositoryMetrics == nil {
 		return
 	}
-	_ = r.systemMetrics.IncrementSystemDBQueryTotal(operation, string(status))
-	_ = r.systemMetrics.ObserveSystemDBQueryDuration(operation, stopTimer())
+	_ = r.repositoryMetrics.IncrementDBQueryTotal(operation, string(status))
+	_ = r.repositoryMetrics.ObserveDBQueryDuration(operation, stopTimer())
 }
 
 func (r *SystemRepository) GetSupportedChains() ([]SupportedChain, error) {
@@ -274,10 +274,10 @@ WHERE ta.id = $1
 }
 func NewSystemRepository(
 	db *sql.DB,
-	systemMetrics *metrics.SystemMetrics,
+	repositoryMetrics *metrics.RepositoryMetrics,
 ) *SystemRepository {
 	return &SystemRepository{
-		db:            db,
-		systemMetrics: systemMetrics,
+		db:                db,
+		repositoryMetrics: repositoryMetrics,
 	}
 }

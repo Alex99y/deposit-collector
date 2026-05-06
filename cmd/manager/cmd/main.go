@@ -68,12 +68,12 @@ func main() {
 		},
 	)
 
-	systemMetrics, err := metrics.NewSystemMetrics(promMetrics)
+	repositoryMetrics, err := metrics.NewRepositoryMetrics(promMetrics)
 	if err != nil {
-		utils.FailOnError(logger, err, "error creating system metrics")
+		utils.FailOnError(logger, err, "error creating repository metrics")
 	}
 
-	systemRepository := system.NewSystemRepository(db, systemMetrics)
+	systemRepository := system.NewSystemRepository(db, repositoryMetrics)
 	chainsCache, err := memorycache.NewChainsCache(systemRepository)
 	if err != nil {
 		utils.FailOnError(logger, err, "Error creating chains cache")

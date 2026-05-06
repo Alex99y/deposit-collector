@@ -54,9 +54,9 @@ func main() {
 	if err != nil {
 		utils.FailOnError(logger, err, "error creating metrics")
 	}
-	systemMetrics, err := metrics.NewSystemMetrics(promMetrics)
+	repositoryMetrics, err := metrics.NewRepositoryMetrics(promMetrics)
 	if err != nil {
-		utils.FailOnError(logger, err, "error creating system metrics")
+		utils.FailOnError(logger, err, "error creating repository metrics")
 	}
 
 	// Setup API services
@@ -72,7 +72,7 @@ func main() {
 	logger.Info("publisher started")
 	defer publisher.Close()
 
-	systemRepository := system.NewSystemRepository(db, systemMetrics)
+	systemRepository := system.NewSystemRepository(db, repositoryMetrics)
 	systemService := system.NewSystemService(systemRepository, logger)
 	systemHandler := system.NewSystemHandler(systemService, logger)
 
@@ -81,7 +81,7 @@ func main() {
 		utils.FailOnError(logger, err, "Error creating chains cache")
 	}
 
-	usersRepository := users.NewUsersRepository(appCtx, db)
+	usersRepository := users.NewUsersRepository(appCtx, db, repositoryMetrics)
 	usersService := users.NewUserService(usersRepository, walletService, logger)
 	usersHandler := users.NewUserHandler(
 		usersService, chainsCache, publisher, apiConfig.BitcoinNetwork, logger,

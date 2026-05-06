@@ -7,47 +7,47 @@ import (
 	observability "deposit-collector/pkg/observability"
 )
 
-type SystemMetrics struct {
+type RepositoryMetrics struct {
 	metrics *observability.PrometheusMetrics
 }
 
 const (
-	SYSTEM_DB_QUERY_TOTAL            = "system_db_query_total"
-	SYSTEM_DB_QUERY_DURATION_SECONDS = "system_db_query_duration_seconds"
+	DB_QUERY_TOTAL            = "db_query_total"
+	DB_QUERY_DURATION_SECONDS = "db_query_duration_seconds"
 )
 
-func (m *SystemMetrics) IncrementSystemDBQueryTotal(
+func (m *RepositoryMetrics) IncrementDBQueryTotal(
 	operation string,
 	status string,
 ) error {
-	counter, _ := m.metrics.GetCounter(SYSTEM_DB_QUERY_TOTAL)
+	counter, _ := m.metrics.GetCounter(DB_QUERY_TOTAL)
 	return counter.Inc(observability.Labels{
 		"operation": operation,
 		"status":    status,
 	})
 }
 
-func (m *SystemMetrics) ObserveSystemDBQueryDuration(
+func (m *RepositoryMetrics) ObserveDBQueryDuration(
 	operation string,
 	duration time.Duration,
 ) error {
-	histogram, _ := m.metrics.GetHistogram(SYSTEM_DB_QUERY_DURATION_SECONDS)
+	histogram, _ := m.metrics.GetHistogram(DB_QUERY_DURATION_SECONDS)
 	return histogram.Observe(
 		duration.Seconds(),
 		observability.Labels{"operation": operation},
 	)
 }
 
-func NewSystemMetrics(
+func NewRepositoryMetrics(
 	metrics *observability.PrometheusMetrics,
-) (*SystemMetrics, error) {
+) (*RepositoryMetrics, error) {
 	if metrics == nil {
 		return nil, errors.New("metrics is nil")
 	}
 
 	_, err := metrics.RegisterCounter(observability.CounterDefinition{
-		Name:      SYSTEM_DB_QUERY_TOTAL,
-		Help:      "Total number of system database queries",
+		Name:      DB_QUERY_TOTAL,
+		Help:      "Total number of database queries",
 		LabelKeys: []string{"operation", "status"},
 	})
 	if IgnoreAlreadyRegisteredError(err) != nil {
@@ -55,13 +55,13 @@ func NewSystemMetrics(
 	}
 
 	_, err = metrics.RegisterHistogram(observability.HistogramDefinition{
-		Name:      SYSTEM_DB_QUERY_DURATION_SECONDS,
-		Help:      "Duration in seconds of system database queries",
+		Name:      DB_QUERY_DURATION_SECONDS,
+		Help:      "Duration in seconds of database queries",
 		LabelKeys: []string{"operation"},
 	})
 	if IgnoreAlreadyRegisteredError(err) != nil {
 		return nil, err
 	}
 
-	return &SystemMetrics{metrics: metrics}, nil
+	return &RepositoryMetrics{metrics: metrics}, nil
 }
