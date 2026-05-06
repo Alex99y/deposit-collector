@@ -211,7 +211,12 @@ func (p *BitcoinProvider) BroadcastTransaction(txHex string) (string, error) {
 		return "", err
 	}
 
-	return string(resp.Result), nil
+	var txHash string
+	if err = json.Unmarshal(resp.Result, &txHash); err != nil {
+		return "", err
+	}
+
+	return txHash, nil
 }
 
 func NewBitcoinProvider(

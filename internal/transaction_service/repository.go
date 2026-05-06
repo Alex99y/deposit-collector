@@ -12,7 +12,7 @@ type TransactionRepository struct {
 }
 
 type StoredOperation struct {
-	ExternalUserID uuid.UUID
+	ExternalUserID string
 	Amount         int64
 	Type           string
 	CreatedAt      time.Time
@@ -35,23 +35,23 @@ u.external_id, ua.address, ua.chain,
 ta.unit_name, ta.unit_symbol, ta.address AS token_address,
 ta.decimals AS token_decimals
 FROM operations AS o
-JOIN users AS u ON operations.user_id = u.id
-JOIN user_addresses AS ua ON operations.address_id = ua.id
-JOIN token_addresses AS ta ON operations.token_address_id = ta.id
-WHERE tx_hash = $1
+JOIN users AS u ON o.user_id = u.id
+JOIN user_addresses AS ua ON o.address_id = ua.id
+JOIN token_addresses AS ta ON o.token_address_id = ta.id
+WHERE o.tx_hash = $1
 `
 
 	err := r.db.QueryRow(q, txHash).Scan(
-		&operation.ExternalUserID,
 		&operation.Amount,
 		&operation.Type,
 		&operation.CreatedAt,
 		&operation.TxHash,
+		&operation.ExternalUserID,
 		&operation.Address,
 		&operation.Chain,
-		&operation.TokenAddress,
 		&operation.UnitName,
 		&operation.UnitSymbol,
+		&operation.TokenAddress,
 		&operation.TokenDecimals,
 	)
 
