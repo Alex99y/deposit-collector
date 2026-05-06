@@ -1,13 +1,13 @@
 package users
 
 import (
-	"context"
+	context "context"
 	sql "database/sql"
-	"fmt"
+	errors "errors"
+	fmt "fmt"
 	time "time"
 
 	postgresql "deposit-collector/pkg/postgresql"
-	"deposit-collector/pkg/utils"
 
 	uuid "github.com/google/uuid"
 )
@@ -159,7 +159,7 @@ func (r *UsersRepository) StoreAddress(
 	).Scan(&userID, &userAccountID)
 	if err != nil {
 		// User not found
-		return "", utils.NewError("user not found: " + request.ExternalID)
+		return "", errors.New("user not found: " + request.ExternalID)
 	}
 
 	var sequenceNumber uint32
@@ -172,14 +172,14 @@ WHERE user_id = $1 AND chain = $2
 		r.ctx, querySequenceNumber, userID, request.Chain,
 	).Scan(&sequenceNumber)
 	if err != nil {
-		return "", utils.NewError("error getting sequence number: " + err.Error())
+		return "", errors.New("error getting sequence number: " + err.Error())
 	}
 
 	addressString, err := getAddressFromSequenceNumber(
 		userAccountID, sequenceNumber,
 	)
 	if err != nil {
-		return "", utils.NewError(
+		return "", errors.New(
 			"error getting address from sequence number: " + err.Error(),
 		)
 	}
@@ -197,11 +197,11 @@ RETURNING id
 	).Scan(&addressID)
 
 	if err != nil {
-		return "", utils.NewError("error inserting address: " + err.Error())
+		return "", errors.New("error inserting address: " + err.Error())
 	}
 
 	if err := tx.Commit(); err != nil {
-		return "", utils.NewError("error committing transaction: " + err.Error())
+		return "", errors.New("error committing transaction: " + err.Error())
 	}
 	return addressString, nil
 }
