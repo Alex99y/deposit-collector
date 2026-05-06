@@ -33,7 +33,7 @@ func (s *Server) Start(port int, host string) error {
 
 type ServerDependencies struct {
 	Logger        *logger.Logger
-	Metrics       *metrics.Metrics
+	Metrics       *metrics.ApiMetrics
 	UsersHandler  *users.UserHandler
 	SystemHandler *system.SystemHandler
 }
