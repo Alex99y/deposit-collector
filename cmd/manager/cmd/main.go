@@ -12,11 +12,13 @@ import (
 	deposit_collector "deposit-collector/cmd/manager/deposit_collector"
 	worker "deposit-collector/cmd/manager/deposit_processor"
 	memorycache "deposit-collector/internal/memory_cache"
+	metrics "deposit-collector/internal/metrics"
 	system "deposit-collector/internal/system"
 	transaction_service "deposit-collector/internal/transaction_service"
 	walletservices "deposit-collector/internal/wallet_services"
 	provider "deposit-collector/pkg/crypto/provider"
 	logger "deposit-collector/pkg/logger"
+	observability "deposit-collector/pkg/observability"
 	postgresql "deposit-collector/pkg/postgresql"
 	rabbitmq "deposit-collector/pkg/rabbitmq"
 	utils "deposit-collector/pkg/utils"
@@ -58,7 +60,20 @@ func main() {
 		logger,
 	)
 
-	systemRepository := system.NewSystemRepository(db)
+	promRegistry := observability.NewPrometheusRegistry()
+
+	promMetrics := observability.NewPrometheusMetrics(
+		observability.PrometheusMetricsConfig{
+			Registerer: promRegistry,
+		},
+	)
+
+	systemMetrics, err := metrics.NewSystemMetrics(promMetrics)
+	if err != nil {
+		utils.FailOnError(logger, err, "error creating system metrics")
+	}
+
+	systemRepository := system.NewSystemRepository(db, systemMetrics)
 	chainsCache, err := memorycache.NewChainsCache(systemRepository)
 	if err != nil {
 		utils.FailOnError(logger, err, "Error creating chains cache")
