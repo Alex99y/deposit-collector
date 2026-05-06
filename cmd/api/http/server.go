@@ -11,10 +11,11 @@ import (
 	requestid "github.com/gofiber/fiber/v3/middleware/requestid"
 	uuid "github.com/google/uuid"
 
-	handlers "deposit-collector/cmd/api/http/handlers"
 	middlewares "deposit-collector/cmd/api/http/middlewares"
 	validations "deposit-collector/cmd/api/http/validations"
 	metrics "deposit-collector/internal/metrics"
+	system "deposit-collector/internal/system"
+	users "deposit-collector/internal/users"
 	logger "deposit-collector/pkg/logger"
 )
 
@@ -33,8 +34,8 @@ func (s *Server) Start(port int, host string) error {
 type ServerDependencies struct {
 	Logger        *logger.Logger
 	Metrics       *metrics.Metrics
-	UsersHandler  *handlers.UserHandler
-	SystemHandler *handlers.SystemHandler
+	UsersHandler  *users.UserHandler
+	SystemHandler *system.SystemHandler
 }
 
 func NewServer(dependencies ServerDependencies) *Server {

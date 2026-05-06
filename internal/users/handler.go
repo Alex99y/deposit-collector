@@ -1,4 +1,4 @@
-package handlers
+package users
 
 import (
 	json "encoding/json"
@@ -7,7 +7,6 @@ import (
 	worker "deposit-collector/cmd/api/worker"
 	memorycache "deposit-collector/internal/memory_cache"
 	system "deposit-collector/internal/system"
-	users "deposit-collector/internal/users"
 	btc_utils "deposit-collector/pkg/crypto/btc"
 	logger "deposit-collector/pkg/logger"
 
@@ -17,7 +16,7 @@ import (
 )
 
 type UserHandler struct {
-	userController *users.UserService
+	userController *UserService
 	chainCache     *memorycache.ChainsCache
 	publisher      *worker.Publisher
 	bitcoinNetwork btc_utils.NETWORK
@@ -156,7 +155,7 @@ func (h *UserHandler) ManualDeposit(c fiber.Ctx) {
 }
 
 func NewUserHandler(
-	usersService *users.UserService,
+	usersService *UserService,
 	chainCache *memorycache.ChainsCache,
 	publisher *worker.Publisher,
 	bitcoinNetwork btc_utils.NETWORK,

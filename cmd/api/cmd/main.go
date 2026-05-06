@@ -10,7 +10,6 @@ import (
 
 	config "deposit-collector/cmd/api/config"
 	http "deposit-collector/cmd/api/http"
-	handlers "deposit-collector/cmd/api/http/handlers"
 	worker "deposit-collector/cmd/api/worker"
 	memorycache "deposit-collector/internal/memory_cache"
 	metrics "deposit-collector/internal/metrics"
@@ -71,7 +70,7 @@ func main() {
 
 	systemRepository := system.NewSystemRepository(db)
 	systemService := system.NewSystemService(systemRepository, logger)
-	systemHandler := handlers.NewSystemHandler(systemService, logger)
+	systemHandler := system.NewSystemHandler(systemService, logger)
 
 	chainsCache, err := memorycache.NewChainsCache(systemRepository)
 	if err != nil {
@@ -80,7 +79,7 @@ func main() {
 
 	usersRepository := users.NewUsersRepository(appCtx, db)
 	usersService := users.NewUserService(usersRepository, walletService, logger)
-	usersHandler := handlers.NewUserHandler(
+	usersHandler := users.NewUserHandler(
 		usersService, chainsCache, publisher, apiConfig.BitcoinNetwork, logger,
 	)
 
