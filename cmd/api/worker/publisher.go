@@ -215,9 +215,7 @@ func connect(
 
 	rmq, err := rabbitmq.NewRabbitMQ(rabbitMQURL)
 	if err != nil {
-		return nil, nil, utils.NewError(
-			fmt.Sprintf("error creating RabbitMQ client: %v", err),
-		)
+		return nil, nil, fmt.Errorf("error creating RabbitMQ client: %w", err)
 	}
 
 	publishQueue, err := rabbitmq.GetQueue(
@@ -239,9 +237,7 @@ func connect(
 
 	operationsQueue := queue.NewOperationsQueue(publishQueue, logger)
 	if err != nil {
-		return nil, nil, utils.NewError(
-			fmt.Sprintf("error creating publish queue: %v", err),
-		)
+		return nil, nil, fmt.Errorf("error creating publish queue: %w", err)
 	}
 
 	return rmq, operationsQueue, nil

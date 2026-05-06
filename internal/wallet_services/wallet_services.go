@@ -2,6 +2,7 @@ package walletservices
 
 import (
 	hex "encoding/hex"
+	errors "errors"
 
 	system "deposit-collector/internal/system"
 	btc_utils "deposit-collector/pkg/crypto/btc"
@@ -60,7 +61,7 @@ func (s *WalletServices) GenerateWallet(
 		}
 		return solWallet, nil
 	default:
-		return nil, utils.NewError("invalid chain platform")
+		return nil, errors.New("invalid chain platform")
 	}
 }
 

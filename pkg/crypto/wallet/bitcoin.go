@@ -3,10 +3,10 @@ package wallet
 import (
 	bytes "bytes"
 	hex "encoding/hex"
+	errors "errors"
 	fmt "fmt"
 
 	btc_utils "deposit-collector/pkg/crypto/btc"
-	utils "deposit-collector/pkg/utils"
 
 	btcutil "github.com/btcsuite/btcd/btcutil"
 	hdkeychain "github.com/btcsuite/btcd/btcutil/hdkeychain"
@@ -51,7 +51,7 @@ func (b *BitcoinWallet) SignTransactionInputs(
 
 	netParams := btc_utils.GetNetParamsByNetwork(network)
 	if netParams == nil {
-		return nil, utils.NewError("invalid bitcoin network")
+		return nil, errors.New("invalid bitcoin network")
 	}
 
 	wif, err := btcutil.DecodeWIF(b.WIF)
@@ -71,7 +71,7 @@ func (b *BitcoinWallet) SignTransactionInputs(
 	prevOutFetcher := txscript.NewMultiPrevOutFetcher(nil)
 	for _, input := range inputs {
 		if input.Index < 0 || input.Index >= len(tx.TxIn) {
-			return nil, utils.NewError("invalid tx input index")
+			return nil, errors.New("invalid tx input index")
 		}
 		prevOut := tx.TxIn[input.Index].PreviousOutPoint
 		prevOutFetcher.AddPrevOut(
@@ -123,7 +123,7 @@ func GenerateBitcoinWallet(
 			seed, params, coinType, accountIndex, changeIndex, index,
 		)
 	}
-	return nil, utils.NewError("bitcoin purpose not supported")
+	return nil, errors.New("bitcoin purpose not supported")
 }
 
 func generateNativeSegwitWallet(

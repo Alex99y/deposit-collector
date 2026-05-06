@@ -13,7 +13,7 @@ import (
 )
 
 func AccessLog(
-	metrics *metrics.Metrics,
+	metrics *metrics.ApiMetrics,
 	logger *logger.Logger,
 ) fiber.Handler {
 	return func(c fiber.Ctx) error {

@@ -1,10 +1,9 @@
-package handlers
+package system
 
 import (
 	json "encoding/json"
 
-	utils "deposit-collector/cmd/api/http/utils"
-	system "deposit-collector/internal/system"
+	httputils "deposit-collector/pkg/http"
 	logger "deposit-collector/pkg/logger"
 	commonUtils "deposit-collector/pkg/utils"
 
@@ -13,13 +12,13 @@ import (
 
 type SystemHandler struct {
 	logger        *logger.Logger
-	systemService *system.SystemService
+	systemService *SystemService
 }
 
 func (h *SystemHandler) GetSupportedChains(c fiber.Ctx) {
 	chains, err := h.systemService.GetSupportedChains()
 	if err != nil {
-		_ = utils.NewServerErrorResponse(c, h.logger, err)
+		_ = httputils.NewServerErrorResponse(c, h.logger, err)
 		return
 	}
 	c.Status(fiber.StatusOK)
@@ -39,19 +38,19 @@ func (h *SystemHandler) GetSupportedTokens(c fiber.Ctx) {
 	query := new(GetSupportedTokensQuery)
 	if err := c.Bind().Query(query); err != nil {
 		if commonUtils.ContainsAny(err.Error(), "user not found") {
-			_ = utils.NewErrorResponse(
+			_ = httputils.NewErrorResponse(
 				c, fiber.StatusNotFound, "user not found",
 			)
 			return
 		}
-		_ = utils.NewErrorResponse(
+		_ = httputils.NewErrorResponse(
 			c, fiber.StatusBadRequest, "invalid request body",
 		)
 		return
 	}
 
 	tokens, err := h.systemService.GetSupportedTokens(
-		system.GetTokenAddressesRequest{
+		GetTokenAddressesRequest{
 			Chain:      query.Chain,
 			Address:    query.Address,
 			UnitSymbol: query.UnitSymbol,
@@ -61,7 +60,7 @@ func (h *SystemHandler) GetSupportedTokens(c fiber.Ctx) {
 	)
 
 	if err != nil {
-		_ = utils.NewServerErrorResponse(c, h.logger, err)
+		_ = httputils.NewServerErrorResponse(c, h.logger, err)
 		return
 	}
 	c.Status(fiber.StatusOK)
@@ -78,25 +77,25 @@ type AddNewSupportedChainRequest struct {
 func (h *SystemHandler) AddNewSupportedChain(c fiber.Ctx) {
 	var request AddNewSupportedChainRequest
 	if err := c.Bind().JSON(&request); err != nil {
-		_ = utils.NewErrorResponse(
+		_ = httputils.NewErrorResponse(
 			c, fiber.StatusBadRequest, err.Error(),
 		)
 		return
 	}
 
-	if err := system.ValidateChainPlatform(request.ChainPlatform); err != nil {
-		_ = utils.NewErrorResponse(
+	if err := ValidateChainPlatform(request.ChainPlatform); err != nil {
+		_ = httputils.NewErrorResponse(
 			c, fiber.StatusBadRequest, "invalid chain platform",
 		)
 		return
 	}
-	err := h.systemService.AddNewSupportedChain(&system.NewSupportedChainRequest{
+	err := h.systemService.AddNewSupportedChain(&NewSupportedChainRequest{
 		ChainName:     request.ChainName,
-		ChainPlatform: system.ChainPlatform(request.ChainPlatform),
+		ChainPlatform: ChainPlatform(request.ChainPlatform),
 		EVMChainID:    &request.EVMChainID,
 	})
 	if err != nil {
-		_ = utils.NewServerErrorResponse(c, h.logger, err)
+		_ = httputils.NewServerErrorResponse(c, h.logger, err)
 		return
 	}
 	c.Status(fiber.StatusOK)
@@ -115,13 +114,13 @@ type AddNewTokenAddressRequest struct {
 func (h *SystemHandler) AddNewTokenAddress(c fiber.Ctx) {
 	var request AddNewTokenAddressRequest
 	if err := c.Bind().JSON(&request); err != nil {
-		_ = utils.NewErrorResponse(
+		_ = httputils.NewErrorResponse(
 			c, fiber.StatusBadRequest, err.Error(),
 		)
 		return
 	}
-	err := h.systemService.AddNewTokenAddress(&system.NewTokenAddressRequest{
-		BaseTokenAddress: system.BaseTokenAddress{
+	err := h.systemService.AddNewTokenAddress(&NewTokenAddressRequest{
+		BaseTokenAddress: BaseTokenAddress{
 			UnitName:   request.UnitName,
 			UnitSymbol: request.UnitSymbol,
 			Address:    request.Address,
@@ -130,7 +129,7 @@ func (h *SystemHandler) AddNewTokenAddress(c fiber.Ctx) {
 		ChainName: request.ChainName,
 	})
 	if err != nil {
-		_ = utils.NewServerErrorResponse(c, h.logger, err)
+		_ = httputils.NewServerErrorResponse(c, h.logger, err)
 		return
 	}
 	c.Status(fiber.StatusOK)
@@ -139,7 +138,7 @@ func (h *SystemHandler) AddNewTokenAddress(c fiber.Ctx) {
 }
 
 func NewSystemHandler(
-	systemService *system.SystemService,
+	systemService *SystemService,
 	logger *logger.Logger,
 ) *SystemHandler {
 	return &SystemHandler{

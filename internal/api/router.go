@@ -1,8 +1,9 @@
-package http
+package api
 
 import (
-	handlers "deposit-collector/cmd/api/http/handlers"
-	validations "deposit-collector/cmd/api/http/validations"
+	validations "deposit-collector/internal/api/validations"
+	system "deposit-collector/internal/system"
+	users "deposit-collector/internal/users"
 
 	logger "deposit-collector/pkg/logger"
 
@@ -12,8 +13,8 @@ import (
 
 type RouterDependencies struct {
 	Logger        *logger.Logger
-	UsersHandler  *handlers.UserHandler
-	SystemHandler *handlers.SystemHandler
+	UsersHandler  *users.UserHandler
+	SystemHandler *system.SystemHandler
 }
 
 func RegisterRoutes(app *fiber.App, dependencies RouterDependencies) {

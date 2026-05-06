@@ -7,7 +7,7 @@ import (
 	observability "deposit-collector/pkg/observability"
 )
 
-type Metrics struct {
+type ApiMetrics struct {
 	metrics *observability.PrometheusMetrics
 }
 
@@ -17,12 +17,14 @@ const (
 	API_REQUESTS_STATUS           = "api_requests_status"
 )
 
-func (m *Metrics) IncrementAPIRequestsCount(method string, path string) error {
+func (m *ApiMetrics) IncrementAPIRequestsCount(
+	method string, path string,
+) error {
 	counter, _ := m.metrics.GetCounter(API_REQUESTS_TOTAL)
 	return counter.Inc(observability.Labels{"method": method, "path": path})
 }
 
-func (m *Metrics) ObserveAPIRequestsDuration(
+func (m *ApiMetrics) ObserveAPIRequestsDuration(
 	path string,
 	status string,
 	duration time.Duration,
@@ -34,7 +36,7 @@ func (m *Metrics) ObserveAPIRequestsDuration(
 	)
 }
 
-func (m *Metrics) IncrementAPIRequestsStatus(
+func (m *ApiMetrics) IncrementAPIRequestsStatus(
 	method string,
 	path string,
 	status string,
@@ -45,7 +47,9 @@ func (m *Metrics) IncrementAPIRequestsStatus(
 	)
 }
 
-func NewMetrics(metrics *observability.PrometheusMetrics) (*Metrics, error) {
+func NewApiMetrics(
+	metrics *observability.PrometheusMetrics,
+) (*ApiMetrics, error) {
 	if metrics == nil {
 		return nil, errors.New("metrics is nil")
 	}
@@ -74,12 +78,5 @@ func NewMetrics(metrics *observability.PrometheusMetrics) (*Metrics, error) {
 	if IgnoreAlreadyRegisteredError(err) != nil {
 		return nil, err
 	}
-	return &Metrics{metrics: metrics}, nil
-}
-
-func IgnoreAlreadyRegisteredError(err error) error {
-	if errors.Is(err, observability.ErrMetricAlreadyRegistered) {
-		return nil
-	}
-	return err
+	return &ApiMetrics{metrics: metrics}, nil
 }

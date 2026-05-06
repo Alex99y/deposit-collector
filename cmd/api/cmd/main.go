@@ -9,9 +9,8 @@ import (
 	time "time"
 
 	config "deposit-collector/cmd/api/config"
-	http "deposit-collector/cmd/api/http"
-	handlers "deposit-collector/cmd/api/http/handlers"
 	worker "deposit-collector/cmd/api/worker"
+	api "deposit-collector/internal/api"
 	memorycache "deposit-collector/internal/memory_cache"
 	metrics "deposit-collector/internal/metrics"
 	system "deposit-collector/internal/system"
@@ -51,9 +50,13 @@ func main() {
 		utils.FailOnError(logger, err, "error creating prometheus metrics")
 	}
 
-	metrics, err := metrics.NewMetrics(promMetrics)
+	apiMetrics, err := metrics.NewApiMetrics(promMetrics)
 	if err != nil {
 		utils.FailOnError(logger, err, "error creating metrics")
+	}
+	repositoryMetrics, err := metrics.NewRepositoryMetrics(promMetrics)
+	if err != nil {
+		utils.FailOnError(logger, err, "error creating repository metrics")
 	}
 
 	// Setup API services
@@ -69,26 +72,26 @@ func main() {
 	logger.Info("publisher started")
 	defer publisher.Close()
 
-	systemRepository := system.NewSystemRepository(db)
+	systemRepository := system.NewSystemRepository(db, repositoryMetrics)
 	systemService := system.NewSystemService(systemRepository, logger)
-	systemHandler := handlers.NewSystemHandler(systemService, logger)
+	systemHandler := system.NewSystemHandler(systemService, logger)
 
 	chainsCache, err := memorycache.NewChainsCache(systemRepository)
 	if err != nil {
 		utils.FailOnError(logger, err, "Error creating chains cache")
 	}
 
-	usersRepository := users.NewUsersRepository(appCtx, db)
+	usersRepository := users.NewUsersRepository(appCtx, db, repositoryMetrics)
 	usersService := users.NewUserService(usersRepository, walletService, logger)
-	usersHandler := handlers.NewUserHandler(
+	usersHandler := users.NewUserHandler(
 		usersService, chainsCache, publisher, apiConfig.BitcoinNetwork, logger,
 	)
 
-	serverDependencies := http.ServerDependencies{
+	serverDependencies := api.ServerDependencies{
 		Logger:        logger,
 		UsersHandler:  usersHandler,
 		SystemHandler: systemHandler,
-		Metrics:       metrics,
+		Metrics:       apiMetrics,
 	}
 
 	// Setup HTTP servers
@@ -112,7 +115,7 @@ func main() {
 		}
 	}()
 
-	server := http.NewServer(serverDependencies)
+	server := api.NewServer(serverDependencies)
 
 	serverErrCh := make(chan error, 1)
 

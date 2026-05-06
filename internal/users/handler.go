@@ -1,14 +1,13 @@
-package handlers
+package users
 
 import (
 	json "encoding/json"
 
-	utils "deposit-collector/cmd/api/http/utils"
 	worker "deposit-collector/cmd/api/worker"
 	memorycache "deposit-collector/internal/memory_cache"
 	system "deposit-collector/internal/system"
-	users "deposit-collector/internal/users"
 	btc_utils "deposit-collector/pkg/crypto/btc"
+	httputils "deposit-collector/pkg/http"
 	logger "deposit-collector/pkg/logger"
 
 	fiber "github.com/gofiber/fiber/v3"
@@ -17,7 +16,7 @@ import (
 )
 
 type UserHandler struct {
-	userController *users.UserService
+	userController *UserService
 	chainCache     *memorycache.ChainsCache
 	publisher      *worker.Publisher
 	bitcoinNetwork btc_utils.NETWORK
@@ -31,14 +30,14 @@ type CreateUserRequest struct {
 func (h *UserHandler) CreateUser(c fiber.Ctx) {
 	user := new(CreateUserRequest)
 	if err := c.Bind().Body(user); err != nil {
-		_ = utils.NewErrorResponse(
+		_ = httputils.NewErrorResponse(
 			c, fiber.StatusBadRequest, "invalid request body",
 		)
 		return
 	}
 
 	if user.ExternalID == "" {
-		_ = utils.NewErrorResponse(
+		_ = httputils.NewErrorResponse(
 			c, fiber.StatusBadRequest, "externalId is required",
 		)
 		return
@@ -46,7 +45,7 @@ func (h *UserHandler) CreateUser(c fiber.Ctx) {
 
 	err := h.userController.CreateUser(user.ExternalID)
 	if err != nil {
-		_ = utils.NewServerErrorResponse(
+		_ = httputils.NewServerErrorResponse(
 			c, h.logger, err,
 		)
 		return
@@ -64,7 +63,7 @@ type GenerateAddressRequest struct {
 func (h *UserHandler) GenerateAddress(c fiber.Ctx) {
 	var request GenerateAddressRequest
 	if err := c.Bind().JSON(&request); err != nil {
-		_ = utils.NewErrorResponse(
+		_ = httputils.NewErrorResponse(
 			c, fiber.StatusBadRequest, err.Error(),
 		)
 		return
@@ -73,7 +72,7 @@ func (h *UserHandler) GenerateAddress(c fiber.Ctx) {
 		c.Params("id"), h.bitcoinNetwork, system.ChainPlatform(request.Chain),
 	)
 	if err != nil {
-		_ = utils.NewServerErrorResponse(c, h.logger, err)
+		_ = httputils.NewServerErrorResponse(c, h.logger, err)
 		return
 	}
 	c.Status(fiber.StatusOK)
@@ -87,7 +86,7 @@ func (h *UserHandler) GetUserAddresses(c fiber.Ctx) {
 	// @TODO: Filter by platform
 	addresses, err := h.userController.GetUserAddresses(c.Params("id"))
 	if err != nil {
-		_ = utils.NewServerErrorResponse(c, h.logger, err)
+		_ = httputils.NewServerErrorResponse(c, h.logger, err)
 		return
 	}
 	c.Status(fiber.StatusOK)
@@ -104,14 +103,14 @@ type ManualDepositRequest struct {
 func (h *UserHandler) ManualDeposit(c fiber.Ctx) {
 	var request ManualDepositRequest
 	if err := c.Bind().JSON(&request); err != nil {
-		_ = utils.NewErrorResponse(
+		_ = httputils.NewErrorResponse(
 			c, fiber.StatusBadRequest, err.Error(),
 		)
 		return
 	}
 	supportedChain := h.chainCache.GetSupportedChainsByChainName(request.ChainName)
 	if supportedChain == nil {
-		_ = utils.NewErrorResponse(
+		_ = httputils.NewErrorResponse(
 			c, fiber.StatusBadRequest, "chain not found",
 		)
 		return
@@ -121,12 +120,12 @@ func (h *UserHandler) ManualDeposit(c fiber.Ctx) {
 	)
 	// Invalid request body
 	if err != nil {
-		_ = utils.NewServerErrorResponse(c, h.logger, err)
+		_ = httputils.NewServerErrorResponse(c, h.logger, err)
 		return
 	}
 	// Address or chain name not found
 	if userId == uuid.Nil || addressDbId == uuid.Nil {
-		_ = utils.NewErrorResponse(
+		_ = httputils.NewErrorResponse(
 			c, fiber.StatusBadRequest, "address not found",
 		)
 		return
@@ -143,7 +142,7 @@ func (h *UserHandler) ManualDeposit(c fiber.Ctx) {
 		addressDbId,
 	)
 	if err != nil {
-		_ = utils.NewServerErrorResponse(c, h.logger, err)
+		_ = httputils.NewServerErrorResponse(c, h.logger, err)
 		return
 	}
 	c.Status(fiber.StatusOK)
@@ -156,7 +155,7 @@ func (h *UserHandler) ManualDeposit(c fiber.Ctx) {
 }
 
 func NewUserHandler(
-	usersService *users.UserService,
+	usersService *UserService,
 	chainCache *memorycache.ChainsCache,
 	publisher *worker.Publisher,
 	bitcoinNetwork btc_utils.NETWORK,

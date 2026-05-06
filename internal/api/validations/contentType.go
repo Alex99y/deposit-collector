@@ -3,7 +3,7 @@ package validations
 import (
 	fmt "fmt"
 
-	utils "deposit-collector/cmd/api/http/utils"
+	httputils "deposit-collector/pkg/http"
 
 	fiber "github.com/gofiber/fiber/v3"
 )
@@ -21,7 +21,7 @@ type ValidateContentTypeError struct {
 func ValidateContentType(contentType ContentType) fiber.Handler {
 	return func(c fiber.Ctx) error {
 		if c.Get("Content-Type") != string(contentType) {
-			return utils.NewErrorResponse(
+			return httputils.NewErrorResponse(
 				c,
 				fiber.StatusBadRequest,
 				fmt.Sprintf("Content-Type must be %s", contentType),
