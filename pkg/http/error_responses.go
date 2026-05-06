@@ -1,4 +1,4 @@
-package utils
+package http
 
 import (
 	logger "deposit-collector/pkg/logger"

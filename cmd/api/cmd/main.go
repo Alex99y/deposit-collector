@@ -9,8 +9,8 @@ import (
 	time "time"
 
 	config "deposit-collector/cmd/api/config"
-	http "deposit-collector/cmd/api/http"
 	worker "deposit-collector/cmd/api/worker"
+	api "deposit-collector/internal/api"
 	memorycache "deposit-collector/internal/memory_cache"
 	metrics "deposit-collector/internal/metrics"
 	system "deposit-collector/internal/system"
@@ -50,7 +50,7 @@ func main() {
 		utils.FailOnError(logger, err, "error creating prometheus metrics")
 	}
 
-	metrics, err := metrics.NewMetrics(promMetrics)
+	metrics, err := metrics.NewApiMetrics(promMetrics)
 	if err != nil {
 		utils.FailOnError(logger, err, "error creating metrics")
 	}
@@ -83,7 +83,7 @@ func main() {
 		usersService, chainsCache, publisher, apiConfig.BitcoinNetwork, logger,
 	)
 
-	serverDependencies := http.ServerDependencies{
+	serverDependencies := api.ServerDependencies{
 		Logger:        logger,
 		UsersHandler:  usersHandler,
 		SystemHandler: systemHandler,
@@ -111,7 +111,7 @@ func main() {
 		}
 	}()
 
-	server := http.NewServer(serverDependencies)
+	server := api.NewServer(serverDependencies)
 
 	serverErrCh := make(chan error, 1)
 

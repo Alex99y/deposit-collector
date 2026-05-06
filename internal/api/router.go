@@ -1,7 +1,7 @@
-package http
+package api
 
 import (
-	validations "deposit-collector/cmd/api/http/validations"
+	validations "deposit-collector/internal/api/validations"
 	system "deposit-collector/internal/system"
 	users "deposit-collector/internal/users"
 

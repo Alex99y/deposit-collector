@@ -1,22 +1,22 @@
-package http
+package api
 
 import (
 	context "context"
 	fmt "fmt"
 	time "time"
 
+	middlewares "deposit-collector/internal/api/middlewares"
+	validations "deposit-collector/internal/api/validations"
+	metrics "deposit-collector/internal/metrics"
+	system "deposit-collector/internal/system"
+	users "deposit-collector/internal/users"
+	logger "deposit-collector/pkg/logger"
+
 	fiber "github.com/gofiber/fiber/v3"
 	favicon "github.com/gofiber/fiber/v3/middleware/favicon"
 	limiter "github.com/gofiber/fiber/v3/middleware/limiter"
 	requestid "github.com/gofiber/fiber/v3/middleware/requestid"
 	uuid "github.com/google/uuid"
-
-	middlewares "deposit-collector/cmd/api/http/middlewares"
-	validations "deposit-collector/cmd/api/http/validations"
-	metrics "deposit-collector/internal/metrics"
-	system "deposit-collector/internal/system"
-	users "deposit-collector/internal/users"
-	logger "deposit-collector/pkg/logger"
 )
 
 type Server struct {
