@@ -35,7 +35,14 @@ func (dp *DepositProcessor) Stop(ctx context.Context) error {
 
 func (dp *DepositProcessor) run(ctx context.Context) error {
 	err := dp.operationsQueue.Consume(ctx, func(args *queue.OperationConsumerArgs) {
-		operation := args.OperationData()
+		operation, err := args.OperationData()
+		if err != nil {
+			dp.logger.Error(
+				fmt.Sprintf("Invalid operation data: %v", err),
+			)
+			_ = args.Reject()
+			return
+		}
 		switch parsedOperation := operation.(type) {
 		case queue.DepositOperationEvent:
 			dp.logger.Info(
@@ -82,7 +89,7 @@ func (dp *DepositProcessor) run(ctx context.Context) error {
 			return
 		default:
 			dp.logger.Error(fmt.Sprintf("Unknown operation type: %T", parsedOperation))
-			_ = args.Nack()
+			_ = args.Reject()
 			return
 		}
 	})
