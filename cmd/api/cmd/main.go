@@ -50,9 +50,13 @@ func main() {
 		utils.FailOnError(logger, err, "error creating prometheus metrics")
 	}
 
-	metrics, err := metrics.NewApiMetrics(promMetrics)
+	apiMetrics, err := metrics.NewApiMetrics(promMetrics)
 	if err != nil {
 		utils.FailOnError(logger, err, "error creating metrics")
+	}
+	systemMetrics, err := metrics.NewSystemMetrics(promMetrics)
+	if err != nil {
+		utils.FailOnError(logger, err, "error creating system metrics")
 	}
 
 	// Setup API services
@@ -68,7 +72,7 @@ func main() {
 	logger.Info("publisher started")
 	defer publisher.Close()
 
-	systemRepository := system.NewSystemRepository(db)
+	systemRepository := system.NewSystemRepository(db, systemMetrics)
 	systemService := system.NewSystemService(systemRepository, logger)
 	systemHandler := system.NewSystemHandler(systemService, logger)
 
@@ -87,7 +91,7 @@ func main() {
 		Logger:        logger,
 		UsersHandler:  usersHandler,
 		SystemHandler: systemHandler,
-		Metrics:       metrics,
+		Metrics:       apiMetrics,
 	}
 
 	// Setup HTTP servers
