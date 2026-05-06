@@ -4,11 +4,15 @@ import (
 	sql "database/sql"
 	time "time"
 
+	metrics "deposit-collector/internal/metrics"
+	observability "deposit-collector/pkg/observability"
+
 	uuid "github.com/google/uuid"
 )
 
 type TransactionRepository struct {
-	db *sql.DB
+	db                *sql.DB
+	repositoryMetrics *metrics.RepositoryMetrics
 }
 
 type StoredOperation struct {
@@ -25,9 +29,26 @@ type StoredOperation struct {
 	TokenDecimals  int
 }
 
+func (r *TransactionRepository) observeQueryMetrics(
+	operation string,
+	status metrics.QueryStatus,
+	stopTimer observability.StopTimer,
+) {
+	if r.repositoryMetrics == nil {
+		return
+	}
+	_ = r.repositoryMetrics.IncrementDBQueryTotal(operation, string(status))
+	_ = r.repositoryMetrics.ObserveDBQueryDuration(operation, stopTimer())
+}
+
 func (r *TransactionRepository) GetOperationByTxHash(
 	txHash string,
 ) (StoredOperation, error) {
+	const metricOperation = "get_operation_by_tx_hash"
+	status := metrics.QUERY_STATUS_FAILED
+	stopTimer := observability.StartTimer()
+	defer r.observeQueryMetrics(metricOperation, status, stopTimer)
+
 	var operation StoredOperation
 	q := `
 SELECT o.amount, o.type, o.created_at, o.tx_hash,
@@ -59,12 +80,18 @@ WHERE o.tx_hash = $1
 		return StoredOperation{}, err
 	}
 
+	status = metrics.QUERY_STATUS_SUCCESS
 	return operation, nil
 }
 
 func (r *TransactionRepository) ExistsOperationByTxHash(
 	txHash string,
 ) (bool, error) {
+	const metricOperation = "exists_operation_by_tx_hash"
+	status := metrics.QUERY_STATUS_FAILED
+	stopTimer := observability.StartTimer()
+	defer r.observeQueryMetrics(metricOperation, status, stopTimer)
+
 	var exists bool
 	q := `
 SELECT EXISTS(SELECT 1 FROM operations WHERE tx_hash = $1)
@@ -74,6 +101,7 @@ SELECT EXISTS(SELECT 1 FROM operations WHERE tx_hash = $1)
 	if err != nil {
 		return false, err
 	}
+	status = metrics.QUERY_STATUS_SUCCESS
 	return exists, nil
 }
 
@@ -92,6 +120,11 @@ func (r *TransactionRepository) EndorseDepositOperation(
 	amount int64,
 	txHash string,
 ) error {
+	const metricOperation = "endorse_deposit_operation"
+	status := metrics.QUERY_STATUS_FAILED
+	stopTimer := observability.StartTimer()
+	defer r.observeQueryMetrics(metricOperation, status, stopTimer)
+
 	tx, err := r.db.Begin()
 	if err != nil {
 		return err
@@ -136,13 +169,22 @@ updated_at = CURRENT_TIMESTAMP
 		return err
 	}
 
-	return tx.Commit()
+	if err := tx.Commit(); err != nil {
+		return err
+	}
+	status = metrics.QUERY_STATUS_SUCCESS
+	return nil
 }
 
 func (r *TransactionRepository) GetUnprocessedDepositsByTokenAddressID(
 	tokenAddressID uuid.UUID,
 	limit int,
 ) ([]PendingDepositOperation, error) {
+	const metricOperation = "get_unprocessed_deposits_by_token_address_id"
+	status := metrics.QUERY_STATUS_FAILED
+	stopTimer := observability.StartTimer()
+	defer r.observeQueryMetrics(metricOperation, status, stopTimer)
+
 	q := `
 SELECT o.id, o.amount, o.tx_hash, ua.address, ua.sequence_number, u.account_id
 FROM operations o
@@ -176,6 +218,10 @@ LIMIT $2
 		operations = append(operations, operation)
 	}
 
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	status = metrics.QUERY_STATUS_SUCCESS
 	return operations, nil
 }
 
@@ -183,6 +229,11 @@ func (r *TransactionRepository) GetGroupedUnprocessedDepositsByTokenAddressID(
 	tokenAddressID uuid.UUID,
 	limit int,
 ) ([]GroupedPendingDepositOperation, error) {
+	const metricOperation = "get_grouped_unprocessed_deposits_by_token_address_id"
+	status := metrics.QUERY_STATUS_FAILED
+	stopTimer := observability.StartTimer()
+	defer r.observeQueryMetrics(metricOperation, status, stopTimer)
+
 	q := `SELECT
     u.account_id,
     ua.address,
@@ -225,6 +276,10 @@ LIMIT $2;`
 		operations = append(operations, operation)
 	}
 
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	status = metrics.QUERY_STATUS_SUCCESS
 	return operations, nil
 }
 
@@ -232,6 +287,11 @@ func (r *TransactionRepository) MarkOperationAsProcessed(
 	operationIDs []uuid.UUID,
 	processedTxHash string,
 ) error {
+	const metricOperation = "mark_operation_as_processed"
+	status := metrics.QUERY_STATUS_FAILED
+	stopTimer := observability.StartTimer()
+	defer r.observeQueryMetrics(metricOperation, status, stopTimer)
+
 	q := `UPDATE operations
 SET
     processed_at = NOW(),
@@ -242,9 +302,16 @@ WHERE id = ANY($1::uuid[]);`
 	if err != nil {
 		return err
 	}
+	status = metrics.QUERY_STATUS_SUCCESS
 	return nil
 }
 
-func NewTransactionRepository(db *sql.DB) *TransactionRepository {
-	return &TransactionRepository{db: db}
+func NewTransactionRepository(
+	db *sql.DB,
+	repositoryMetrics *metrics.RepositoryMetrics,
+) *TransactionRepository {
+	return &TransactionRepository{
+		db:                db,
+		repositoryMetrics: repositoryMetrics,
+	}
 }

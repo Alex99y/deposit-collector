@@ -79,7 +79,9 @@ func main() {
 		utils.FailOnError(logger, err, "Error creating chains cache")
 	}
 
-	transactionRepository := transaction_service.NewTransactionRepository(db)
+	transactionRepository := transaction_service.NewTransactionRepository(
+		db, repositoryMetrics,
+	)
 	transactionService := transaction_service.NewTransactionService(
 		providerPool,
 		transactionRepository,
