@@ -81,7 +81,7 @@ func main() {
 		utils.FailOnError(logger, err, "Error creating chains cache")
 	}
 
-	usersRepository := users.NewUsersRepository(appCtx, db)
+	usersRepository := users.NewUsersRepository(appCtx, db, repositoryMetrics)
 	usersService := users.NewUserService(usersRepository, walletService, logger)
 	usersHandler := users.NewUserHandler(
 		usersService, chainsCache, publisher, apiConfig.BitcoinNetwork, logger,
