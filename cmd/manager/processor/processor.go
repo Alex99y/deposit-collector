@@ -95,6 +95,7 @@ func (dp *Processor) run(ctx context.Context) error {
 						fmt.Sprintf("Error validating and storing withdraw operation: %v", err),
 					)
 					_ = args.Reject()
+					return
 				}
 				dp.logger.Info(
 					fmt.Sprintf(
