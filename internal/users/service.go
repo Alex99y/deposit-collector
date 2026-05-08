@@ -25,6 +25,12 @@ func (s *UserService) CreateUser(externalID string) error {
 	return nil
 }
 
+func (s *UserService) GetUserByExternalID(
+	externalID string,
+) (*StoredUser, error) {
+	return s.usersRepository.GetUserByExternalID(externalID)
+}
+
 func (s *UserService) GenerateAddress(
 	externalID string,
 	network btc_utils.NETWORK,

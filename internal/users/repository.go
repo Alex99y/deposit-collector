@@ -43,7 +43,9 @@ func (r *UsersRepository) CreateUser(
 	const operation = "create_user"
 	status := metrics.QUERY_STATUS_FAILED
 	stopTimer := observability.StartTimer()
-	defer r.observeQueryMetrics(operation, status, stopTimer)
+	defer func() {
+		r.observeQueryMetrics(operation, status, stopTimer)
+	}()
 
 	q := `
 INSERT INTO users (external_id, account_id)
@@ -91,11 +93,13 @@ FROM users RETURNING id, account_id`
 
 func (r *UsersRepository) GetUserByExternalID(
 	externalID string,
-) (StoredUser, error) {
+) (*StoredUser, error) {
 	const operation = "get_user_by_external_id"
 	status := metrics.QUERY_STATUS_FAILED
 	stopTimer := observability.StartTimer()
-	defer r.observeQueryMetrics(operation, status, stopTimer)
+	defer func() {
+		r.observeQueryMetrics(operation, status, stopTimer)
+	}()
 
 	var user StoredUser
 
@@ -114,11 +118,11 @@ WHERE external_id = $1
 	)
 
 	if err != nil {
-		return StoredUser{}, err
+		return nil, err
 	}
 
 	status = metrics.QUERY_STATUS_SUCCESS
-	return user, nil
+	return &user, nil
 }
 
 func (r *UsersRepository) GetAddressesByExternalID(
@@ -127,7 +131,9 @@ func (r *UsersRepository) GetAddressesByExternalID(
 	const operation = "get_addresses_by_external_id"
 	status := metrics.QUERY_STATUS_FAILED
 	stopTimer := observability.StartTimer()
-	defer r.observeQueryMetrics(operation, status, stopTimer)
+	defer func() {
+		r.observeQueryMetrics(operation, status, stopTimer)
+	}()
 
 	var addresses []StoredAddress
 
@@ -182,7 +188,9 @@ func (r *UsersRepository) StoreAddress(
 	const operation = "store_address"
 	status := metrics.QUERY_STATUS_FAILED
 	stopTimer := observability.StartTimer()
-	defer r.observeQueryMetrics(operation, status, stopTimer)
+	defer func() {
+		r.observeQueryMetrics(operation, status, stopTimer)
+	}()
 
 	tx, err := r.db.BeginTx(r.ctx, nil)
 	if err != nil {
@@ -255,7 +263,9 @@ func (r *UsersRepository) FindUserIDAndAddressIDByAddress(
 	const operation = "find_user_id_and_address_id_by_address"
 	status := metrics.QUERY_STATUS_FAILED
 	stopTimer := observability.StartTimer()
-	defer r.observeQueryMetrics(operation, status, stopTimer)
+	defer func() {
+		r.observeQueryMetrics(operation, status, stopTimer)
+	}()
 
 	var userDbId uuid.UUID
 	var addressDbId uuid.UUID

@@ -6,7 +6,7 @@ import (
 	worker "deposit-collector/cmd/api/worker"
 	memorycache "deposit-collector/internal/memory_cache"
 	system "deposit-collector/internal/system"
-	btc_utils "deposit-collector/pkg/crypto/btc"
+	crypto_utils "deposit-collector/pkg/crypto"
 	httputils "deposit-collector/pkg/http"
 	logger "deposit-collector/pkg/logger"
 
@@ -19,7 +19,7 @@ type UserHandler struct {
 	userController *UserService
 	chainCache     *memorycache.ChainsCache
 	publisher      *worker.Publisher
-	bitcoinNetwork btc_utils.NETWORK
+	cryptoUtils    *crypto_utils.CryptoUtils
 	logger         *logger.Logger
 }
 
@@ -69,7 +69,8 @@ func (h *UserHandler) GenerateAddress(c fiber.Ctx) {
 		return
 	}
 	address, err := h.userController.GenerateAddress(
-		c.Params("id"), h.bitcoinNetwork, system.ChainPlatform(request.Chain),
+		c.Params("id"), h.cryptoUtils.GetBitcoinNetwork(),
+		system.ChainPlatform(request.Chain),
 	)
 	if err != nil {
 		_ = httputils.NewServerErrorResponse(c, h.logger, err)
@@ -145,9 +146,98 @@ func (h *UserHandler) ManualDeposit(c fiber.Ctx) {
 		_ = httputils.NewServerErrorResponse(c, h.logger, err)
 		return
 	}
-	c.Status(fiber.StatusOK)
+	c.Status(fiber.StatusAccepted)
 	jsonData, _ := json.Marshal(map[string]string{
 		"message": "Deposit request received. " +
+			"If the tx is not finalized, it will be rejected by the system.",
+		"id": requestUuId,
+	})
+	_, _ = c.Write(jsonData)
+}
+
+type RequestWithdrawRequest struct {
+	ExternalID string `json:"externalId" validate:"required"`
+	Amount     int64  `json:"amount" validate:"required"`
+	ChainName  string `json:"chainName" validate:"required"`
+	Address    string `json:"address" validate:"required"`
+}
+
+func (h *UserHandler) RequestWithdraw(c fiber.Ctx) {
+	var request RequestWithdrawRequest
+	if err := c.Bind().JSON(&request); err != nil {
+		_ = httputils.NewErrorResponse(
+			c, fiber.StatusBadRequest, err.Error(),
+		)
+		return
+	}
+	// Validate amount
+	if request.Amount == 0 || request.Amount < 0 {
+		_ = httputils.NewErrorResponse(
+			c, fiber.StatusBadRequest,
+			"amount is required and must be greater than 0",
+		)
+		return
+	}
+	// Validate chain name
+	if request.ChainName == "" {
+		_ = httputils.NewErrorResponse(
+			c, fiber.StatusBadRequest, "chain name is required",
+		)
+		return
+	}
+	// Validate external ID
+	if request.ExternalID == "" {
+		_ = httputils.NewErrorResponse(
+			c, fiber.StatusBadRequest, "external ID is required",
+		)
+		return
+	}
+	// Validate user exists
+	user, err := h.userController.GetUserByExternalID(request.ExternalID)
+	if err != nil {
+		_ = httputils.NewServerErrorResponse(c, h.logger, err)
+		return
+	}
+	if user == nil {
+		_ = httputils.NewErrorResponse(c, fiber.StatusBadRequest, "user not found")
+		return
+	}
+	// Validate ChainName
+	chainSupported := h.chainCache.GetSupportedChainsByChainName(request.ChainName)
+	if chainSupported == nil {
+		_ = httputils.NewErrorResponse(
+			c, fiber.StatusBadRequest, "chain not supported",
+		)
+		return
+	}
+	// Validate destination address
+	if !h.cryptoUtils.ValidateAddress(
+		request.Address, chainSupported.ChainPlatform,
+	) {
+		_ = httputils.NewErrorResponse(
+			c, fiber.StatusBadRequest, "invalid address",
+		)
+		return
+	}
+
+	requestUuId := requestid.FromContext(c)
+
+	// Publish the withdraw operation
+	err = h.publisher.PublishWithdrawOperation(
+		c.Context(),
+		uuid.MustParse(requestUuId),
+		user.ID,
+		request.ChainName,
+		request.Address,
+		request.Amount,
+	)
+	if err != nil {
+		_ = httputils.NewServerErrorResponse(c, h.logger, err)
+		return
+	}
+	c.Status(fiber.StatusAccepted)
+	jsonData, _ := json.Marshal(map[string]string{
+		"message": "Withdraw request received. " +
 			"If the tx is not finalized, it will be rejected by the system.",
 		"id": requestUuId,
 	})
@@ -158,7 +248,7 @@ func NewUserHandler(
 	usersService *UserService,
 	chainCache *memorycache.ChainsCache,
 	publisher *worker.Publisher,
-	bitcoinNetwork btc_utils.NETWORK,
+	cryptoUtils *crypto_utils.CryptoUtils,
 	logger *logger.Logger,
 ) *UserHandler {
 	if chainCache == nil || publisher == nil ||
@@ -169,7 +259,7 @@ func NewUserHandler(
 		userController: usersService,
 		chainCache:     chainCache,
 		publisher:      publisher,
-		bitcoinNetwork: bitcoinNetwork,
+		cryptoUtils:    cryptoUtils,
 		logger:         logger,
 	}
 }

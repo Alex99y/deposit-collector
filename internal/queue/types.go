@@ -30,9 +30,10 @@ type DepositOperationEvent struct {
 }
 
 type WithdrawOperationEvent struct {
-	UserDbID          uuid.UUID
-	SourceChainName   string
-	SourceAddressDbId uuid.UUID
+	UserDbID        uuid.UUID
+	TargetChainName string
+	TargetAddress   string
+	WithdrawAmount  int64
 }
 
 type OperationEvent struct {

@@ -34,7 +34,9 @@ func (r *SystemRepository) GetSupportedChains() ([]SupportedChain, error) {
 	const operation = "get_supported_chains"
 	status := metrics.QUERY_STATUS_FAILED
 	stopTimer := observability.StartTimer()
-	defer r.observeQueryMetrics(operation, status, stopTimer)
+	defer func() {
+		r.observeQueryMetrics(operation, status, stopTimer)
+	}()
 
 	var chains []SupportedChain
 
@@ -78,7 +80,9 @@ func (r *SystemRepository) AddNewSupportedChain(
 	const operation = "add_new_supported_chain"
 	status := metrics.QUERY_STATUS_FAILED
 	stopTimer := observability.StartTimer()
-	defer r.observeQueryMetrics(operation, status, stopTimer)
+	defer func() {
+		r.observeQueryMetrics(operation, status, stopTimer)
+	}()
 
 	q := `
 INSERT INTO supported_chains (
@@ -113,7 +117,9 @@ func (r *SystemRepository) AddNewTokenAddress(
 	const operation = "add_new_token_address"
 	status := metrics.QUERY_STATUS_FAILED
 	stopTimer := observability.StartTimer()
-	defer r.observeQueryMetrics(operation, status, stopTimer)
+	defer func() {
+		r.observeQueryMetrics(operation, status, stopTimer)
+	}()
 
 	q := `
 INSERT INTO token_addresses (
@@ -152,7 +158,9 @@ func (r *SystemRepository) GetTokenAddresses(
 	const operation = "get_token_addresses"
 	status := metrics.QUERY_STATUS_FAILED
 	stopTimer := observability.StartTimer()
-	defer r.observeQueryMetrics(operation, status, stopTimer)
+	defer func() {
+		r.observeQueryMetrics(operation, status, stopTimer)
+	}()
 
 	var tokenAddresses []TokenAddress
 
@@ -242,7 +250,9 @@ func (r *SystemRepository) GetTokenAddressByID(
 	const operation = "get_token_address_by_id"
 	status := metrics.QUERY_STATUS_FAILED
 	stopTimer := observability.StartTimer()
-	defer r.observeQueryMetrics(operation, status, stopTimer)
+	defer func() {
+		r.observeQueryMetrics(operation, status, stopTimer)
+	}()
 
 	var tokenAddress TokenAddress
 	var chain SupportedChain

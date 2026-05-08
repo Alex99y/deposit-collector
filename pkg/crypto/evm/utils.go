@@ -19,6 +19,10 @@ type ERC20Transfer struct {
 	Value *big.Int
 }
 
+func ValidateAddress(address string) bool {
+	return common.IsHexAddress(address)
+}
+
 func FindERC20Transfers(receipt *types.Receipt) []ERC20Transfer {
 	var results []ERC20Transfer
 

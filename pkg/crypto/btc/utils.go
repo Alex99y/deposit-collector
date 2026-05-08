@@ -7,6 +7,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/btcsuite/btcd/btcutil"
 	"github.com/btcsuite/btcd/chaincfg"
 	"github.com/btcsuite/btcd/txscript"
 )
@@ -68,4 +69,9 @@ func GetNetParamsByNetwork(network NETWORK) *chaincfg.Params {
 	}
 
 	return params
+}
+
+func ValidateAddress(address string, network NETWORK) bool {
+	_, err := btcutil.DecodeAddress(address, GetNetParamsByNetwork(network))
+	return err == nil
 }
