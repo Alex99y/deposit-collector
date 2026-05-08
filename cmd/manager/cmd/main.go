@@ -15,6 +15,7 @@ import (
 	metrics "deposit-collector/internal/metrics"
 	system "deposit-collector/internal/system"
 	transaction_service "deposit-collector/internal/transaction_service"
+	"deposit-collector/internal/users"
 	walletservices "deposit-collector/internal/wallet_services"
 	provider "deposit-collector/pkg/crypto/provider"
 	logger "deposit-collector/pkg/logger"
@@ -79,11 +80,14 @@ func main() {
 		utils.FailOnError(logger, err, "Error creating chains cache")
 	}
 
+	usersRepository := users.NewUsersRepository(ctx, db, repositoryMetrics)
+
 	transactionRepository := transaction_service.NewTransactionRepository(
 		db, repositoryMetrics,
 	)
 	transactionService := transaction_service.NewTransactionService(
 		providerPool,
+		usersRepository,
 		transactionRepository,
 		chainsCache,
 		logger,

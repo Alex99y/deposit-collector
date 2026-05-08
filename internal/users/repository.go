@@ -281,6 +281,44 @@ func (r *UsersRepository) FindUserIDAndAddressIDByAddress(
 	return userDbId, addressDbId, nil
 }
 
+func (r *UsersRepository) GetUserBalance(
+	userID uuid.UUID,
+	tokenAddressID uuid.UUID,
+) (*StoredUserBalance, error) {
+	const operation = "get_user_balance"
+	status := metrics.QUERY_STATUS_FAILED
+	stopTimer := observability.StartTimer()
+	defer func() {
+		r.observeQueryMetrics(operation, status, stopTimer)
+	}()
+
+	var userBalance StoredUserBalance
+	query := `
+SELECT ub.available_balance, ub.frozen_balance, ub.updated_at,
+ub.blocked_balance_for_withdrawal, ta.unit_name,
+ta.unit_symbol, ta.address
+FROM user_balances AS ub
+INNER JOIN token_addresses AS ta ON ub.token_address_id = ta.id
+WHERE ub.user_id = $1 AND ub.token_address_id = $2
+`
+	err := r.db.QueryRowContext(
+		r.ctx, query, userID, tokenAddressID,
+	).Scan(
+		&userBalance.AvailableBalance,
+		&userBalance.FrozenBalance,
+		&userBalance.BlockedBalanceForWithdrawal,
+		&userBalance.UpdatedAt,
+		&userBalance.UnitName,
+		&userBalance.UnitSymbol,
+		&userBalance.TokenAddress,
+	)
+	if err != nil {
+		return nil, err
+	}
+	status = metrics.QUERY_STATUS_SUCCESS
+	return &userBalance, nil
+}
+
 func NewUsersRepository(
 	ctx context.Context,
 	db *sql.DB,

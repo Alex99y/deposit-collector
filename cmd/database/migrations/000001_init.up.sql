@@ -105,15 +105,25 @@ CREATE UNIQUE INDEX user_addresses_user_chain_uk ON user_addresses (user_id, cha
 
 CREATE TABLE operations (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    type operation_type NOT NULL,
     user_id UUID NOT NULL REFERENCES users(id),
-    address_id UUID NOT NULL REFERENCES user_addresses(id),
+    -- Address references the user_addresses table because we need to generate the
+    --      private key to sign the transaction
+    deposit_address_id UUID REFERENCES user_addresses(id) NULL,
+    -- withdraw_destination_address is the destination address of the operation
+    -- It is only used for withdraw operations
+    withdraw_destination_address VARCHAR(100) NULL,
     token_address_id UUID NOT NULL REFERENCES token_addresses(id),
     amount BIGINT NOT NULL,
-    type operation_type NOT NULL,
     created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    -- processed_at is the timestamp of the operation when it was processed
+    -- It is used by both deposit and withdraw operations
     processed_at TIMESTAMPTZ NULL,
+    -- processed_tx_hash is the hash of the transaction that processed the operation
     processed_tx_hash VARCHAR(100) NULL,
-    tx_hash VARCHAR(100) NOT NULL
+    -- tx_hash is the hash of the deposit transaction
+    -- For withdraw operations, it will be NULL
+    tx_hash VARCHAR(100) NULL
 );
 
 CREATE UNIQUE INDEX idx_operations_user_created ON operations (user_id, created_at DESC);

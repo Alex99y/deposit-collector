@@ -2,6 +2,7 @@ package transaction_service
 
 import (
 	sql "database/sql"
+	errors "errors"
 	time "time"
 
 	metrics "deposit-collector/internal/metrics"
@@ -59,7 +60,7 @@ ta.unit_name, ta.unit_symbol, ta.address AS token_address,
 ta.decimals AS token_decimals
 FROM operations AS o
 JOIN users AS u ON o.user_id = u.id
-JOIN user_addresses AS ua ON o.address_id = ua.id
+JOIN user_addresses AS ua ON o.deposit_address_id = ua.id
 JOIN token_addresses AS ta ON o.token_address_id = ta.id
 WHERE o.tx_hash = $1
 `
@@ -141,11 +142,11 @@ func (r *TransactionRepository) EndorseDepositOperation(
 
 	insertOperationQuery := `
 INSERT INTO operations (
-user_id, address_id, token_address_id, amount, type, tx_hash
+user_id, deposit_address_id, token_address_id, amount, type, tx_hash
 )
 VALUES ($1, $2, $3, $4, $5, $6)
 `
-	_, err = tx.Exec(
+	result, err := tx.Exec(
 		insertOperationQuery,
 		userID,
 		addressID,
@@ -158,6 +159,14 @@ VALUES ($1, $2, $3, $4, $5, $6)
 		return err
 	}
 
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if rowsAffected == 0 {
+		return errors.New("no rows affected for insert operation")
+	}
+
 	insertBalanceQuery := `
 INSERT INTO user_balances (user_id, token_address_id, available_balance)
 VALUES ($1, $2, $3)
@@ -165,7 +174,7 @@ ON CONFLICT (user_id, token_address_id) DO UPDATE SET
 available_balance = user_balances.available_balance + EXCLUDED.available_balance,
 updated_at = CURRENT_TIMESTAMP
 `
-	_, err = tx.Exec(
+	result, err = tx.Exec(
 		insertBalanceQuery,
 		userID,
 		tokenAddressID,
@@ -173,6 +182,14 @@ updated_at = CURRENT_TIMESTAMP
 	)
 	if err != nil {
 		return err
+	}
+
+	rowsAffected, err = result.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if rowsAffected == 0 {
+		return errors.New("no rows affected for insert balance")
 	}
 
 	if err := tx.Commit(); err != nil {
@@ -196,7 +213,7 @@ func (r *TransactionRepository) GetUnprocessedDepositsByTokenAddressID(
 	q := `
 SELECT o.id, o.amount, o.tx_hash, ua.address, ua.sequence_number, u.account_id
 FROM operations o
-JOIN user_addresses ua ON o.address_id = ua.id
+JOIN user_addresses ua ON o.deposit_address_id = ua.id
 JOIN users u ON o.user_id = u.id
 WHERE o.token_address_id = $1 AND o.type = 'deposit' AND o.processed_at IS NULL
 ORDER BY o.amount DESC
@@ -252,7 +269,7 @@ func (r *TransactionRepository) GetGroupedUnprocessedDepositsByTokenAddressID(
     ARRAY_AGG(o.id) AS operation_ids
 FROM operations o
 JOIN users u ON u.id = o.user_id
-JOIN user_addresses ua ON ua.id = o.address_id
+JOIN user_addresses ua ON ua.id = o.deposit_address_id
 WHERE
     o.type = 'deposit'
     AND o.token_address_id = $1
@@ -315,6 +332,104 @@ WHERE id = ANY($1::uuid[]);`
 		return err
 	}
 	status = metrics.QUERY_STATUS_SUCCESS
+	return nil
+}
+
+func (r *TransactionRepository) EndorseWithdrawOperation(
+	userID uuid.UUID,
+	tokenAddressID uuid.UUID,
+	withdrawAmount int64,
+	withdrawDestinationAddress string,
+) error {
+	const metricOperation = "endorse_withdraw_operation"
+	status := metrics.QUERY_STATUS_FAILED
+	stopTimer := observability.StartTimer()
+	defer func() {
+		r.observeQueryMetrics(metricOperation, status, stopTimer)
+	}()
+
+	tx, err := r.db.Begin()
+	if err != nil {
+		return err
+	}
+	defer func() {
+		_ = tx.Rollback()
+	}()
+
+	var userBalance int64
+	query := `
+SELECT available_balance
+FROM user_balances
+WHERE user_id = $1 AND token_address_id = $2 AND available_balance >= $3
+FOR UPDATE
+`
+	err = tx.QueryRow(
+		query, userID, tokenAddressID, withdrawAmount,
+	).Scan(&userBalance)
+	if err != nil {
+		return err
+	}
+
+	if userBalance < withdrawAmount {
+		return errors.New("insufficient balance for withdrawal")
+	}
+
+	insertOperationQuery := `
+INSERT INTO operations (
+user_id, withdraw_destination_address, token_address_id, amount, type
+)
+VALUES ($1, $2, $3, $4, 'withdraw')
+`
+
+	result, err := tx.Exec(
+		insertOperationQuery,
+		userID,
+		withdrawDestinationAddress,
+		tokenAddressID,
+		withdrawAmount,
+	)
+	if err != nil {
+		return err
+	}
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if rowsAffected == 0 {
+		return errors.New("no rows affected for insert operation")
+	}
+
+	updateUserBalanceQuery := `
+UPDATE user_balances
+SET
+available_balance = available_balance - $1
+blocked_balance_for_withdrawal = blocked_balance_for_withdrawal + $1
+updated_at = CURRENT_TIMESTAMP
+WHERE user_id = $2 AND token_address_id = $3
+`
+
+	result, err = tx.Exec(
+		updateUserBalanceQuery,
+		withdrawAmount,
+		userID,
+		tokenAddressID,
+	)
+	if err != nil {
+		return err
+	}
+	rowsAffected, err = result.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if rowsAffected == 0 {
+		return errors.New("no rows affected for update user balance")
+	}
+
+	if err := tx.Commit(); err != nil {
+		return err
+	}
+	status = metrics.QUERY_STATUS_SUCCESS
+
 	return nil
 }
 
