@@ -66,6 +66,9 @@ func (s *TransactionService) ValidateAndStoreDepositOperation(
 func (s *TransactionService) ValidateAndStoreWithdrawOperation(
 	operation *queue.WithdrawOperationEvent,
 ) error {
+	if operation.WithdrawAmount <= 0 {
+		return utils.NewCustomError("withdraw amount must be greater than 0", false)
+	}
 	return s.repository.EndorseWithdrawOperation(
 		operation.UserDbID,
 		operation.TokenAddressDbId,
