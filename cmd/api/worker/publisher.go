@@ -170,6 +170,53 @@ func (p *Publisher) PublishDepositOperation(
 	}
 }
 
+func (p *Publisher) PublishWithdrawOperation(
+	ctx context.Context,
+	requestId uuid.UUID,
+	userDbId uuid.UUID,
+	targetChainName string,
+	targetAddress string,
+	withdrawAmount int64,
+) error {
+	operationData, err := json.Marshal(queue.WithdrawOperationEvent{
+		UserDbID:        userDbId,
+		TargetChainName: targetChainName,
+		TargetAddress:   targetAddress,
+		WithdrawAmount:  withdrawAmount,
+	})
+	if err != nil {
+		return err
+	}
+	req := publishReq{
+		ctx:        ctx,
+		routingKey: "withdraw.operation",
+		body: queue.OperationEvent{
+			RequestId:     requestId,
+			OperationType: queue.OperationTypeWithdraw,
+			OperationData: operationData,
+		},
+		mandatory:  false,
+		immediate:  false,
+		persistent: true,
+		resp:       make(chan error),
+	}
+
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	case <-p.done:
+		return errors.New("publisher closed")
+	case p.reqCh <- req:
+	}
+
+	select {
+	case err := <-req.resp:
+		return err
+	case <-ctx.Done():
+		return ctx.Err()
+	}
+}
+
 func (p *Publisher) reconnectLoop(backoff *time.Duration) error {
 	for {
 		select {
