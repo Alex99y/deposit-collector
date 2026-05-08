@@ -87,6 +87,21 @@ func (dp *Processor) run(ctx context.Context) error {
 					"Received withdraw operation id: " +
 						args.OperationEvent.RequestId.String(),
 				)
+				err := dp.transactionService.ValidateAndStoreWithdrawOperation(
+					&parsedOperation,
+				)
+				if err != nil {
+					dp.logger.Error(
+						fmt.Sprintf("Error validating and storing withdraw operation: %v", err),
+					)
+					_ = args.Reject()
+				}
+				dp.logger.Info(
+					fmt.Sprintf(
+						"Withdraw operation validated and stored: %+v",
+						parsedOperation.TargetAddress,
+					),
+				)
 				_ = args.Ack()
 				return
 			default:

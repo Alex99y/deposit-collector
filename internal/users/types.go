@@ -35,3 +35,13 @@ type CreateAddressRequest struct {
 	SequenceNumber int
 	Chain          system.ChainPlatform
 }
+
+type StoredUserBalance struct {
+	AvailableBalance            int64     `json:"availableBalance"`
+	FrozenBalance               int64     `json:"frozenBalance"`
+	BlockedBalanceForWithdrawal int64     `json:"blockedBalanceForWithdrawal"`
+	UpdatedAt                   time.Time `json:"updatedAt"`
+	UnitSymbol                  string    `json:"unitSymbol"`
+	UnitName                    string    `json:"unitName"`
+	TokenAddress                string    `json:"tokenAddress"`
+}
