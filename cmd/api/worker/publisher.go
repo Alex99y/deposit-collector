@@ -174,15 +174,17 @@ func (p *Publisher) PublishWithdrawOperation(
 	ctx context.Context,
 	requestId uuid.UUID,
 	userDbId uuid.UUID,
+	tokenAddressDbId uuid.UUID,
 	targetChainName string,
 	targetAddress string,
 	withdrawAmount int64,
 ) error {
 	operationData, err := json.Marshal(queue.WithdrawOperationEvent{
-		UserDbID:        userDbId,
-		TargetChainName: targetChainName,
-		TargetAddress:   targetAddress,
-		WithdrawAmount:  withdrawAmount,
+		UserDbID:         userDbId,
+		TokenAddressDbId: tokenAddressDbId,
+		TargetChainName:  targetChainName,
+		TargetAddress:    targetAddress,
+		WithdrawAmount:   withdrawAmount,
 	})
 	if err != nil {
 		return err

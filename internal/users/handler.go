@@ -160,6 +160,7 @@ type RequestWithdrawRequest struct {
 	Amount     int64  `json:"amount" validate:"required"`
 	ChainName  string `json:"chainName" validate:"required"`
 	Address    string `json:"address" validate:"required"`
+	UnitSymbol string `json:"unitSymbol" validate:"required"`
 }
 
 func (h *UserHandler) RequestWithdraw(c fiber.Ctx) {
@@ -192,6 +193,13 @@ func (h *UserHandler) RequestWithdraw(c fiber.Ctx) {
 		)
 		return
 	}
+	// Validate token unit symbol
+	if request.UnitSymbol == "" {
+		_ = httputils.NewErrorResponse(
+			c, fiber.StatusBadRequest, "unit symbol is required",
+		)
+		return
+	}
 	// Validate user exists
 	user, err := h.userController.GetUserByExternalID(request.ExternalID)
 	if err != nil {
@@ -219,6 +227,17 @@ func (h *UserHandler) RequestWithdraw(c fiber.Ctx) {
 		)
 		return
 	}
+	// Validate token unit symbol exists
+	tokenAddress := h.chainCache.GetTokenAddressByChainNameAndUnitSymbol(
+		request.ChainName,
+		request.UnitSymbol,
+	)
+	if tokenAddress == nil {
+		_ = httputils.NewErrorResponse(
+			c, fiber.StatusBadRequest, "token unit symbol not found",
+		)
+		return
+	}
 
 	requestUuId := requestid.FromContext(c)
 
@@ -227,6 +246,7 @@ func (h *UserHandler) RequestWithdraw(c fiber.Ctx) {
 		c.Context(),
 		uuid.MustParse(requestUuId),
 		user.ID,
+		tokenAddress.TokenAddressDbID,
 		request.ChainName,
 		request.Address,
 		request.Amount,

@@ -48,6 +48,18 @@ func (c *ChainsCache) GetTokenAddressByChainNameAndTokenAddress(
 	return nil
 }
 
+func (c *ChainsCache) GetTokenAddressByChainNameAndUnitSymbol(
+	chainName string,
+	unitSymbol string,
+) *system.TokenAddress {
+	for _, token := range c.tokensByChainName[chainName] {
+		if token.UnitSymbol == strings.ToUpper(unitSymbol) {
+			return token
+		}
+	}
+	return nil
+}
+
 func (c *ChainsCache) GetTokensByChainName(
 	chainName string,
 ) []*system.TokenAddress {

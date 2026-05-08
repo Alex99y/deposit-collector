@@ -69,7 +69,8 @@ CREATE TABLE user_balances (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id UUID NOT NULL REFERENCES users(id),
     available_balance BIGINT NOT NULL,
-    locked_balance BIGINT DEFAULT 0 NOT NULL,
+    frozen_balance BIGINT DEFAULT 0 NOT NULL,
+    blocked_balance_for_withdrawal BIGINT DEFAULT 0 NOT NULL,
     token_address_id UUID NOT NULL REFERENCES token_addresses(id),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
