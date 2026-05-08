@@ -47,7 +47,9 @@ func (r *TransactionRepository) GetOperationByTxHash(
 	const metricOperation = "get_operation_by_tx_hash"
 	status := metrics.QUERY_STATUS_FAILED
 	stopTimer := observability.StartTimer()
-	defer r.observeQueryMetrics(metricOperation, status, stopTimer)
+	defer func() {
+		r.observeQueryMetrics(metricOperation, status, stopTimer)
+	}()
 
 	var operation StoredOperation
 	q := `
@@ -90,7 +92,9 @@ func (r *TransactionRepository) ExistsOperationByTxHash(
 	const metricOperation = "exists_operation_by_tx_hash"
 	status := metrics.QUERY_STATUS_FAILED
 	stopTimer := observability.StartTimer()
-	defer r.observeQueryMetrics(metricOperation, status, stopTimer)
+	defer func() {
+		r.observeQueryMetrics(metricOperation, status, stopTimer)
+	}()
 
 	var exists bool
 	q := `
@@ -123,7 +127,9 @@ func (r *TransactionRepository) EndorseDepositOperation(
 	const metricOperation = "endorse_deposit_operation"
 	status := metrics.QUERY_STATUS_FAILED
 	stopTimer := observability.StartTimer()
-	defer r.observeQueryMetrics(metricOperation, status, stopTimer)
+	defer func() {
+		r.observeQueryMetrics(metricOperation, status, stopTimer)
+	}()
 
 	tx, err := r.db.Begin()
 	if err != nil {
@@ -183,7 +189,9 @@ func (r *TransactionRepository) GetUnprocessedDepositsByTokenAddressID(
 	const metricOperation = "get_unprocessed_deposits_by_token_address_id"
 	status := metrics.QUERY_STATUS_FAILED
 	stopTimer := observability.StartTimer()
-	defer r.observeQueryMetrics(metricOperation, status, stopTimer)
+	defer func() {
+		r.observeQueryMetrics(metricOperation, status, stopTimer)
+	}()
 
 	q := `
 SELECT o.id, o.amount, o.tx_hash, ua.address, ua.sequence_number, u.account_id
@@ -232,7 +240,9 @@ func (r *TransactionRepository) GetGroupedUnprocessedDepositsByTokenAddressID(
 	const metricOperation = "get_grouped_unprocessed_deposits_by_token_address_id"
 	status := metrics.QUERY_STATUS_FAILED
 	stopTimer := observability.StartTimer()
-	defer r.observeQueryMetrics(metricOperation, status, stopTimer)
+	defer func() {
+		r.observeQueryMetrics(metricOperation, status, stopTimer)
+	}()
 
 	q := `SELECT
     u.account_id,
@@ -290,7 +300,9 @@ func (r *TransactionRepository) MarkOperationAsProcessed(
 	const metricOperation = "mark_operation_as_processed"
 	status := metrics.QUERY_STATUS_FAILED
 	stopTimer := observability.StartTimer()
-	defer r.observeQueryMetrics(metricOperation, status, stopTimer)
+	defer func() {
+		r.observeQueryMetrics(metricOperation, status, stopTimer)
+	}()
 
 	q := `UPDATE operations
 SET
