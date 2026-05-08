@@ -16,6 +16,7 @@ import (
 	system "deposit-collector/internal/system"
 	users "deposit-collector/internal/users"
 	walletservices "deposit-collector/internal/wallet_services"
+	crypto_utils "deposit-collector/pkg/crypto"
 	logger "deposit-collector/pkg/logger"
 	observability "deposit-collector/pkg/observability"
 	postgresql "deposit-collector/pkg/postgresql"
@@ -81,10 +82,12 @@ func main() {
 		utils.FailOnError(logger, err, "Error creating chains cache")
 	}
 
+	cryptoUtils := crypto_utils.NewCryptoUtils(apiConfig.BitcoinNetwork)
+
 	usersRepository := users.NewUsersRepository(appCtx, db, repositoryMetrics)
 	usersService := users.NewUserService(usersRepository, walletService, logger)
 	usersHandler := users.NewUserHandler(
-		usersService, chainsCache, publisher, apiConfig.BitcoinNetwork, logger,
+		usersService, chainsCache, publisher, cryptoUtils, logger,
 	)
 
 	serverDependencies := api.ServerDependencies{
