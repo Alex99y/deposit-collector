@@ -2,10 +2,14 @@ package provider
 
 import (
 	context "context"
+	errors "errors"
+	math "math/big"
+	time "time"
 
 	logger "deposit-collector/pkg/logger"
 	utils "deposit-collector/pkg/utils"
 
+	ethereum "github.com/ethereum/go-ethereum"
 	common "github.com/ethereum/go-ethereum/common"
 	types "github.com/ethereum/go-ethereum/core/types"
 	ethclient "github.com/ethereum/go-ethereum/ethclient"
@@ -64,6 +68,72 @@ func (p *EVMProvider) GetTxInfo(txHash string) (*EvmTxInfo, error) {
 		Timestamp: txInfo.Time().String(),
 		TxReceipt: tx,
 	}, nil
+}
+
+func (p *EVMProvider) GetPendingNonce(address common.Address) (uint64, error) {
+	return p.client.PendingNonceAt(p.context, address)
+}
+
+func (p *EVMProvider) SuggestGasTipCap() (*math.Int, error) {
+	return p.client.SuggestGasTipCap(p.context)
+}
+
+func (p *EVMProvider) GetLatestBaseFeePerGas() (*math.Int, error) {
+	header, err := p.client.HeaderByNumber(p.context, nil)
+	if err != nil {
+		return nil, err
+	}
+	if header.BaseFee == nil {
+		return nil, errors.New("chain does not appear to support EIP-1559 (missing baseFee)")
+	}
+	return header.BaseFee, nil
+}
+
+func (p *EVMProvider) EstimateNativeGas(from common.Address, to common.Address, valueWei *math.Int) (uint64, error) {
+	if valueWei == nil || valueWei.Sign() <= 0 {
+		return 0, errors.New("valueWei must be > 0")
+	}
+	return p.client.EstimateGas(
+		p.context,
+		ethereum.CallMsg{
+			From:  from,
+			To:    &to,
+			Value: valueWei,
+		},
+	)
+}
+
+func (p *EVMProvider) BroadcastSignedTransaction(signedTx *types.Transaction) (string, error) {
+	if signedTx == nil {
+		return "", errors.New("signedTx is required")
+	}
+	if err := p.client.SendTransaction(p.context, signedTx); err != nil {
+		return "", err
+	}
+	return signedTx.Hash().Hex(), nil
+}
+
+func (p *EVMProvider) WaitForConfirmations(txHash string, confirmations uint64) error {
+	if confirmations == 0 {
+		return nil
+	}
+
+	for {
+		latestBlock, err := p.GetLatestBlockNumber()
+		if err != nil {
+			return err
+		}
+
+		txInfo, err := p.GetTxInfo(txHash)
+		if err == nil && txInfo != nil && txInfo.TxReceipt != nil {
+			receiptBlock := txInfo.TxReceipt.BlockNumber.Uint64()
+			if latestBlock >= receiptBlock+confirmations {
+				return nil
+			}
+		}
+
+		time.Sleep(3 * time.Second)
+	}
 }
 
 func NewEVMProvider(
