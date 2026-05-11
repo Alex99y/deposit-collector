@@ -7,6 +7,7 @@
 - Ability to freeze funds or block accounts (yes, I'm sorry)
 - Solana `Manager` implementation (`Processor` and `Collector` services)
 - EVM `Manager` implementation (`Collector` service)
+    - Only for ERC-20 tokens, native transfer is implemented
 - Withdraw `Manager` implementation
     - Bitcoin withdraw processor is done. Bitcoin withdraw collector is still in WIP.
     - For EVM and SOL, are not implemented yet.
