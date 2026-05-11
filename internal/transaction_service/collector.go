@@ -2,15 +2,17 @@ package transaction_service
 
 import (
 	errors "errors"
-	fmt "fmt"
+	math "math/big"
 
 	system "deposit-collector/internal/system"
 	walletservices "deposit-collector/internal/wallet_services"
 	btc_utils "deposit-collector/pkg/crypto/btc"
+	evm_utils "deposit-collector/pkg/crypto/evm"
 	provider "deposit-collector/pkg/crypto/provider"
 	wallet "deposit-collector/pkg/crypto/wallet"
 	utils "deposit-collector/pkg/utils"
 
+	common "github.com/ethereum/go-ethereum/common"
 	uuid "github.com/google/uuid"
 )
 
@@ -33,10 +35,119 @@ func collectEVMUnprocessedDeposits(
 	if err != nil {
 		return nil, err
 	}
-	for _, operation := range operations {
-		fmt.Println(operation)
+
+	if len(operations) == 0 {
+		return nil, nil
 	}
-	return nil, nil
+
+	operation := operations[0]
+
+	switch tokenAddress.Address {
+	case "native":
+		// Native ETH sweep (EOA -> master).
+	default:
+		// ERC20 sweep is not implemented yet.
+		return nil, nil
+	}
+
+	// 1) Generate the EOA wallet that controls `operation.Address`.
+	// NOTE: the changeIndex is set to 0 for now.
+	generatedWallet, err := walletServices.GenerateWallet(
+		operation.AccountID,
+		0,
+		operation.SequenceNumber,
+		btc_utils.MAINNET,
+		system.ChainPlatformEVM,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	evmWallet, ok := generatedWallet.(*wallet.EvmWallet)
+	if !ok {
+		return nil, errors.New("invalid wallet type for evm operation")
+	}
+	if evmWallet.GetAddress() != operation.Address {
+		return nil, errors.New("wallet address does not match operation address")
+	}
+
+	// 2) TODO: check balance before sending/creating the txn.
+	valueWei := math.NewInt(operation.Amount)
+	if valueWei.Sign() <= 0 {
+		return nil, errors.New("deposit amount must be > 0")
+	}
+
+	// 3) Send a normal EVM native transfer (EIP-1559).
+	fromAddress := common.HexToAddress(evmWallet.GetAddress())
+	toAddress := common.HexToAddress(destinationDepositAddress)
+
+	nonce, err := provider.GetPendingNonce(fromAddress)
+	if err != nil {
+		return nil, err
+	}
+
+	tipCap, err := provider.SuggestGasTipCap()
+	if err != nil {
+		return nil, err
+	}
+
+	baseFeePerGas, err := provider.GetLatestBaseFeePerGas()
+	if err != nil {
+		return nil, err
+	}
+
+	gasLimit, err := provider.EstimateNativeGas(fromAddress, toAddress, valueWei)
+	if err != nil {
+		return nil, err
+	}
+
+	unsignedTx, err := evm_utils.BuildNativeTransferEIP1559Tx(
+		provider.ChainID,
+		fromAddress,
+		nonce,
+		toAddress,
+		valueWei,
+		gasLimit,
+		tipCap,
+		baseFeePerGas,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	signedTxs, err := walletservices.SignEVMTransactions(
+		[]walletservices.EVMSigner{
+			{
+				Wallet: *evmWallet,
+				Txs: []*evm_utils.UnsignedEIP1559Tx{
+					unsignedTx,
+				},
+			},
+		})
+	if err != nil {
+		return nil, err
+	}
+	if len(signedTxs) == 0 {
+		return nil, errors.New("no signed transactions generated")
+	}
+
+	txHash, err := provider.BroadcastSignedTransaction(signedTxs[0])
+	if err != nil {
+		return nil, err
+	}
+
+	// 4) Wait for at least 5 block confirmations.
+	const confirmationsToWait uint64 = 5
+	if err := provider.WaitForConfirmations(
+		txHash, confirmationsToWait,
+	); err != nil {
+		return nil, err
+	}
+
+	return &CollectUnprocessedDepositsResult{
+		TxHash:       txHash,
+		OperationIDs: operation.OperationIDs,
+	}, nil
 }
 
 func collectBTCUnprocessedDeposits(
