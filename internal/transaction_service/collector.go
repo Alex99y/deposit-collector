@@ -250,3 +250,63 @@ func CollectUnprocessedDeposits(
 	}
 	return nil, nil
 }
+
+type CollectUnprocessedWithdrawalsResult struct {
+	TxHash       string
+	OperationIDs []uuid.UUID
+}
+
+func collectEVMUnprocessedWithdrawals(
+	tokenAddress system.TokenAddress,
+	repository TransactionRepository,
+	provider provider.EVMProvider,
+	walletServices walletservices.WalletServices,
+) (*CollectUnprocessedWithdrawalsResult, error) {
+	return nil, nil
+}
+
+func collectBTCUnprocessedWithdrawals(
+	tokenAddress system.TokenAddress,
+	repository TransactionRepository,
+	provider provider.BitcoinProvider,
+	walletServices walletservices.WalletServices,
+) (*CollectUnprocessedWithdrawalsResult, error) {
+	return nil, nil
+}
+
+func collectSOLUnprocessedWithdrawals(
+	tokenAddress system.TokenAddress,
+	repository TransactionRepository,
+) (*CollectUnprocessedWithdrawalsResult, error) {
+	return nil, nil
+}
+
+func CollectUnprocessedWithdrawals(
+	chain system.SupportedChain,
+	tokenAddress system.TokenAddress,
+	providerPool *provider.ProviderPool,
+	repository *TransactionRepository,
+	walletServices *walletservices.WalletServices,
+) (*CollectUnprocessedWithdrawalsResult, error) {
+	switch chain.ChainPlatform {
+	case system.ChainPlatformEVM:
+		evmProvider := providerPool.GetEVMProvider(chain.ChainName)
+		if evmProvider == nil {
+			return nil, utils.NewCustomError("provider not found", false)
+		}
+		return collectEVMUnprocessedWithdrawals(
+			tokenAddress, *repository, *evmProvider, *walletServices,
+		)
+	case system.ChainPlatformBTC:
+		btcProvider := providerPool.GetBitcoinProvider()
+		if btcProvider == nil {
+			return nil, utils.NewCustomError("provider not found", false)
+		}
+		return collectBTCUnprocessedWithdrawals(
+			tokenAddress, *repository, *btcProvider, *walletServices,
+		)
+	case system.ChainPlatformSOL:
+		return collectSOLUnprocessedWithdrawals(tokenAddress, *repository)
+	}
+	return nil, nil
+}

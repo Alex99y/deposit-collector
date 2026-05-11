@@ -1,0 +1,127 @@
+package withdraw_collector
+
+import (
+	context "context"
+
+	system "deposit-collector/internal/system"
+	transaction_service "deposit-collector/internal/transaction_service"
+	walletservices "deposit-collector/internal/wallet_services"
+	provider "deposit-collector/pkg/crypto/provider"
+	logger "deposit-collector/pkg/logger"
+	worker "deposit-collector/pkg/worker"
+	fmt "fmt"
+)
+
+type WithdrawCollectorWorker struct {
+	chain                 system.SupportedChain
+	tokens                []system.TokenAddress
+	transactionRepository *transaction_service.TransactionRepository
+	providerPool          *provider.ProviderPool
+	walletServices        *walletservices.WalletServices
+	logger                *logger.Logger
+}
+
+func (w *WithdrawCollectorWorker) ProcessWithdrawals() {
+	for _, token := range w.tokens {
+		result, err := transaction_service.CollectUnprocessedWithdrawals(
+			w.chain,
+			token,
+			w.providerPool,
+			w.transactionRepository,
+			w.walletServices,
+		)
+		if err != nil {
+			w.logger.Error(
+				fmt.Sprintf("error collecting withdrawals for token %s in chain %s: %s",
+					token.Address, w.chain.ChainName, err.Error(),
+				),
+			)
+			w.logger.ErrorO(err)
+			continue
+		}
+		if result == nil {
+			continue
+		}
+		if result.TxHash != "" {
+			w.logger.Info(
+				fmt.Sprintf("collected withdrawal for token %s with tx hash %s in chain %s",
+					token.Address, result.TxHash, w.chain.ChainName,
+				),
+			)
+			err = w.transactionRepository.MarkOperationAsProcessed(
+				result.OperationIDs,
+				result.TxHash,
+			)
+			if err != nil {
+				w.logger.ErrorO(err)
+			}
+		}
+	}
+}
+
+type WithdrawCollector struct {
+	ctx                   context.Context
+	chains                []system.SupportedChain
+	logger                *logger.Logger
+	transactionRepository *transaction_service.TransactionRepository
+	providerPool          *provider.ProviderPool
+	walletServices        *walletservices.WalletServices
+	systemRepository      *system.SystemRepository
+	workers               []*worker.Worker
+}
+
+func (w *WithdrawCollector) Start() error {
+	for index := range w.chains {
+		chain := w.chains[index]
+
+		tokens, err := w.systemRepository.GetTokenAddresses(
+			system.GetTokenAddressesRequest{
+				Chain: &chain.ChainName,
+				Limit: 10000,
+			},
+		)
+		if err != nil {
+			return err
+		}
+
+		withdrawCollectorWorker := WithdrawCollectorWorker{
+			chain:                 chain,
+			tokens:                tokens,
+			transactionRepository: w.transactionRepository,
+			providerPool:          w.providerPool,
+			walletServices:        w.walletServices,
+			logger:                w.logger,
+		}
+
+		worker := worker.NewWorker(
+			fmt.Sprintf("withdraw-collector-%s-worker", chain.ChainName),
+			w.ctx,
+			w.logger,
+			withdrawCollectorWorker.ProcessWithdrawals,
+			60,
+		)
+		err = worker.Start()
+		if err != nil {
+			return err
+		}
+		w.workers = append(w.workers, worker)
+	}
+	return nil
+}
+
+func NewWithdrawCollector(
+	ctx context.Context,
+	providerPool *provider.ProviderPool,
+	transactionRepository *transaction_service.TransactionRepository,
+	walletServices *walletservices.WalletServices,
+	logger *logger.Logger,
+) *WithdrawCollector {
+	return &WithdrawCollector{
+		ctx:                   ctx,
+		logger:                logger,
+		transactionRepository: transactionRepository,
+		providerPool:          providerPool,
+		walletServices:        walletServices,
+		workers:               make([]*worker.Worker, 0),
+	}
+}
