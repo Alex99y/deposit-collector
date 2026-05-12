@@ -2,9 +2,11 @@ package btc_utils
 
 import (
 	"bytes"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"math"
+	"sort"
 
 	"github.com/btcsuite/btcd/btcutil"
 	"github.com/btcsuite/btcd/chaincfg/chainhash"
@@ -226,4 +228,99 @@ func CalculateFee(req CalculateFeeRequest) (int64, error) {
 		fee = 1
 	}
 	return fee, nil
+}
+
+// ElectrumListUnspentEntry matches Electrum blockchain.scripthash.listunspent elements.
+type ElectrumListUnspentEntry struct {
+	TxHash string
+	TxPos  int
+	Value  int64
+}
+
+// SelectBTCInputsAndFeeForWithdrawals picks P2WPKH inputs and fee so that
+// change goes to signerAddress when above dust; otherwise the remainder is
+// absorbed into the fee (no dusty change output).
+func SelectBTCInputsAndFeeForWithdrawals(
+	electrum []ElectrumListUnspentEntry,
+	outputs []TxOutput,
+	satPerVByte float64,
+	signerAddress string,
+	totalWithdrawSats int64,
+) ([]UTXOInput, int64, string, error) {
+	inputs := make([]UTXOInput, 0, len(electrum))
+	for _, u := range electrum {
+		if u.Value <= 0 || u.TxHash == "" || u.TxPos < 0 {
+			continue
+		}
+		inputs = append(inputs, UTXOInput{
+			TxHash:     u.TxHash,
+			Vout:       uint32(u.TxPos),
+			AmountSats: u.Value,
+		})
+	}
+	if len(inputs) == 0 {
+		return nil, 0, "", errors.New("no spendable UTXOs")
+	}
+	sort.Slice(inputs, func(i, j int) bool {
+		return inputs[i].AmountSats > inputs[j].AmountSats
+	})
+
+	nOut := len(outputs)
+	selected := make([]UTXOInput, 0, len(inputs))
+	var totalIn int64
+
+	for _, u := range inputs {
+		selected = append(selected, u)
+		totalIn += u.AmountSats
+
+		feeWithChange, err := CalculateFee(CalculateFeeRequest{
+			InputCount:         len(selected),
+			OutputCount:        nOut,
+			SignaturesPerInput: 1,
+			FeeRateSatPerVByte: satPerVByte,
+			IncludeChange:      true,
+		})
+		if err != nil {
+			return nil, 0, "", err
+		}
+
+		if totalIn >= totalWithdrawSats+feeWithChange {
+			change := totalIn - totalWithdrawSats - feeWithChange
+			if change > 0 && change < DefaultDustThreshold {
+				feeNoChange, err := CalculateFee(CalculateFeeRequest{
+					InputCount:         len(selected),
+					OutputCount:        nOut,
+					SignaturesPerInput: 1,
+					FeeRateSatPerVByte: satPerVByte,
+					IncludeChange:      false,
+				})
+				if err != nil {
+					return nil, 0, "", err
+				}
+				remainderFee := totalIn - totalWithdrawSats
+				if remainderFee < feeNoChange {
+					continue
+				}
+				return selected, remainderFee, "", nil
+			}
+			return selected, feeWithChange, signerAddress, nil
+		}
+	}
+
+	return nil, 0, "", errors.New("insufficient UTXO value for withdrawals and network fee")
+}
+
+// BitcoinTxIDFromSerializedHex returns the transaction id (BIP141 txid: double SHA-256
+// of the non-witness serialization). It matches explorer / Electrum tx hashes for
+// both legacy and witness transactions.
+func BitcoinTxIDFromSerializedHex(txHex string) (string, error) {
+	raw, err := hex.DecodeString(txHex)
+	if err != nil {
+		return "", fmt.Errorf("decode tx hex: %w", err)
+	}
+	var tx wire.MsgTx
+	if err := tx.Deserialize(bytes.NewReader(raw)); err != nil {
+		return "", fmt.Errorf("deserialize bitcoin tx: %w", err)
+	}
+	return tx.TxID(), nil
 }
