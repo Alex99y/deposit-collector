@@ -71,9 +71,9 @@ func collectEVMUnprocessedDeposits(
 		return nil, errors.New("wallet address does not match operation address")
 	}
 
-	// 2) TODO: check balance before sending/creating the txn.
-	valueWei := math.NewInt(operation.Amount)
-	if valueWei.Sign() <= 0 {
+	// 2) Use the credited amount as the deposit EOA balance to sweep.
+	balanceWei := math.NewInt(operation.Amount)
+	if balanceWei.Sign() <= 0 {
 		return nil, errors.New("deposit amount must be > 0")
 	}
 
@@ -96,7 +96,34 @@ func collectEVMUnprocessedDeposits(
 		return nil, err
 	}
 
-	gasLimit, err := provider.EstimateNativeGas(fromAddress, toAddress, valueWei)
+	gasFeeCap, err := evm_utils.CalculateEIP1559GasFeeCap(
+		tipCap, baseFeePerGas,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	initialSweepValue, err := evm_utils.CalculateNativeSweepValue(
+		balanceWei,
+		evm_utils.NativeTransferIntrinsicGas,
+		gasFeeCap,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	gasLimit, err := provider.EstimateNativeGas(
+		fromAddress, toAddress, initialSweepValue,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	sweepValueWei, err := evm_utils.CalculateNativeSweepValue(
+		balanceWei,
+		gasLimit,
+		gasFeeCap,
+	)
 	if err != nil {
 		return nil, err
 	}
@@ -106,7 +133,7 @@ func collectEVMUnprocessedDeposits(
 		fromAddress,
 		nonce,
 		toAddress,
-		valueWei,
+		sweepValueWei,
 		gasLimit,
 		tipCap,
 		baseFeePerGas,
