@@ -6,7 +6,7 @@ import (
 
 	config "deposit-collector/internal/config"
 	system "deposit-collector/internal/system"
-	transaction_service "deposit-collector/internal/transaction_service"
+	tx_service "deposit-collector/internal/transaction_service"
 	logger "deposit-collector/pkg/logger"
 	utils "deposit-collector/pkg/utils"
 )
@@ -19,6 +19,9 @@ const (
 	DepositCollectorEVMDestinationDepositAddress = "DEPOSIT_COLLECTOR_EVM_DESTINATION_DEPOSIT_ADDRESS"
 	DepositCollectorBTCDestinationDepositAddress = "DEPOSIT_COLLECTOR_BTC_DESTINATION_DEPOSIT_ADDRESS"
 	DepositCollectorSOLDestinationDepositAddress = "DEPOSIT_COLLECTOR_SOL_DESTINATION_DEPOSIT_ADDRESS"
+	WithdrawCollectorEVMPrivateKey               = "WITHDRAW_COLLECTOR_EVM_PRIVATE_KEY"
+	WithdrawCollectorBTCPrivateKey               = "WITHDRAW_COLLECTOR_BTC_PRIVATE_KEY"
+	WithdrawCollectorSOLPrivateKey               = "WITHDRAW_COLLECTOR_SOL_PRIVATE_KEY"
 )
 
 type ManagerConfig struct {
@@ -27,7 +30,8 @@ type ManagerConfig struct {
 	AllowMultiThreading                  bool
 	MaxWorkers                           int
 	DepositCollectorInterval             time.Duration
-	DepositCollectorDestinationAddresses transaction_service.DestinationDepositAddress
+	DepositCollectorDestinationAddresses tx_service.DestinationDepositAddress
+	WithdrawCollectorPrivateKeys         tx_service.WithdrawCollectorPrivateKeys
 }
 
 func GetManagerConfig(logger *logger.Logger) *ManagerConfig {
@@ -46,14 +50,28 @@ func GetManagerConfig(logger *logger.Logger) *ManagerConfig {
 		)
 	}
 
-	depositCollectorInterval, err := time.ParseDuration(config.GetEnvOrDefault(DepositCollectorInterval, "10s"))
+	depositCollectorInterval, err := time.ParseDuration(
+		config.GetEnvOrDefault(DepositCollectorInterval, "10s"),
+	)
 	if err != nil {
-		utils.FailOnError(logger, err, "Error converting DepositCollectorInterval to duration")
+		utils.FailOnError(
+			logger, err, "Error converting DepositCollectorInterval to duration",
+		)
 	}
 
-	depositCollectorEVMDepositAddress := config.GetEnvOrDefault(DepositCollectorEVMDestinationDepositAddress, "")
-	depositCollectorBTCDepositAddress := config.GetEnvOrDefault(DepositCollectorBTCDestinationDepositAddress, "")
-	depositCollectorSOLDepositAddress := config.GetEnvOrDefault(DepositCollectorSOLDestinationDepositAddress, "")
+	depositCollectorEVMDepositAddress :=
+		config.GetEnvOrDefault(DepositCollectorEVMDestinationDepositAddress, "")
+	depositCollectorBTCDepositAddress :=
+		config.GetEnvOrDefault(DepositCollectorBTCDestinationDepositAddress, "")
+	depositCollectorSOLDepositAddress :=
+		config.GetEnvOrDefault(DepositCollectorSOLDestinationDepositAddress, "")
+
+	withdrawCollectorEVMPrivateKey :=
+		config.GetEnvOrDefault(WithdrawCollectorEVMPrivateKey, "")
+	withdrawCollectorBTCPrivateKey :=
+		config.GetEnvOrDefault(WithdrawCollectorBTCPrivateKey, "")
+	withdrawCollectorSOLPrivateKey :=
+		config.GetEnvOrDefault(WithdrawCollectorSOLPrivateKey, "")
 
 	return &ManagerConfig{
 		CommonConfig: *commonConfig,
@@ -63,10 +81,15 @@ func GetManagerConfig(logger *logger.Logger) *ManagerConfig {
 		) == "true",
 		MaxWorkers:               maxWorkers,
 		DepositCollectorInterval: depositCollectorInterval,
-		DepositCollectorDestinationAddresses: transaction_service.DestinationDepositAddress{
+		DepositCollectorDestinationAddresses: tx_service.DestinationDepositAddress{
 			system.ChainPlatformEVM: depositCollectorEVMDepositAddress,
 			system.ChainPlatformBTC: depositCollectorBTCDepositAddress,
 			system.ChainPlatformSOL: depositCollectorSOLDepositAddress,
+		},
+		WithdrawCollectorPrivateKeys: tx_service.WithdrawCollectorPrivateKeys{
+			system.ChainPlatformEVM: withdrawCollectorEVMPrivateKey,
+			system.ChainPlatformBTC: withdrawCollectorBTCPrivateKey,
+			system.ChainPlatformSOL: withdrawCollectorSOLPrivateKey,
 		},
 	}
 }
