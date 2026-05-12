@@ -9,7 +9,6 @@
 - EVM `Manager` implementation (`Collector` service)
     - Only for ERC-20 tokens, native transfer is implemented
 - Withdraw `Manager` implementation
-    - Bitcoin withdraw processor is done. Bitcoin withdraw collector is still in WIP.
     - **BTC withdraw collector — two-phase persistence (see `collectBTCUnprocessedWithdrawals`):** (1) Compute `txid` locally before broadcast (use `btc_utils.BitcoinTxIDFromSerializedHex` on the signed raw hex), broadcast, validate the returned hash against that `txid`, then persist `txHash` / mark operations in the DB. (2) In a separate process, confirm the tx is committed on-chain; set `processed_at` when confirmed, or if the tx never commits / is dropped, clear the stored `txHash` from the registry as appropriate.
     - For EVM and SOL, are not implemented yet.
 - **Security — withdraw authorization:** Withdraw endorsement today trusts AMQP payload fields (`UserDbID`, `TokenAddressDbId`, `TargetAddress`, amount). A forged message could debit a victim’s balance and send funds to an attacker-controlled destination if someone can publish to the queue. Mitigate by re-resolving/authorizing the user, token, and destination from an authenticated request (or an internal idempotent server-side record created only after auth), or by verifying a signed command at the `Manager` boundary; do not treat the queue payload alone as proof of intent.
