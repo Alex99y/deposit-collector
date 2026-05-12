@@ -7,6 +7,7 @@ import (
 )
 
 type DestinationDepositAddress = map[system.ChainPlatform]string
+type WithdrawCollectorPrivateKeys = map[system.ChainPlatform]string
 
 type baseDepositOperation struct {
 	Amount         int64
@@ -24,4 +25,10 @@ type PendingDepositOperation struct {
 type GroupedPendingDepositOperation struct {
 	baseDepositOperation
 	OperationIDs []uuid.UUID
+}
+
+type PendingWithdrawalOperation struct {
+	ID                 uuid.UUID
+	Amount             int64
+	DestinationAddress string
 }

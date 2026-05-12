@@ -433,6 +433,77 @@ VALUES ($1, $2, $3, $4, 'withdraw')
 	return nil
 }
 
+func (r *TransactionRepository) GetUnprocessedWithdrawalsByTokenAddressID(
+	tokenAddressID uuid.UUID,
+	limit int,
+) ([]PendingWithdrawalOperation, error) {
+	const metricOperation = "get_unprocessed_withdrawals_by_token_address_id"
+	status := metrics.QUERY_STATUS_FAILED
+	stopTimer := observability.StartTimer()
+	defer func() {
+		r.observeQueryMetrics(metricOperation, status, stopTimer)
+	}()
+
+	q := `
+SELECT o.id, o.amount, o.withdraw_destination_address
+FROM operations o
+WHERE o.token_address_id = $1 AND o.type = 'withdraw' AND o.processed_at IS NULL
+ORDER BY o.created_at ASC
+LIMIT $2
+`
+
+	rows, err := r.db.Query(q, tokenAddressID, limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	operations := make([]PendingWithdrawalOperation, 0)
+	for rows.Next() {
+		var operation PendingWithdrawalOperation
+		err := rows.Scan(
+			&operation.ID,
+			&operation.Amount,
+			&operation.DestinationAddress,
+		)
+		if err != nil {
+			return nil, err
+		}
+		operations = append(operations, operation)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	status = metrics.QUERY_STATUS_SUCCESS
+	return operations, nil
+}
+
+func (r *TransactionRepository) MarkWithdrawalOperationAsProcessed(
+	operationIDs []uuid.UUID,
+	processedTxHash string,
+) error {
+	const metricOperation = "mark_withdrawal_operation_as_processed"
+	status := metrics.QUERY_STATUS_FAILED
+	stopTimer := observability.StartTimer()
+	defer func() {
+		r.observeQueryMetrics(metricOperation, status, stopTimer)
+	}()
+
+	q := `UPDATE operations
+SET
+    processed_at = NOW(),
+    processed_tx_hash = $2
+WHERE id = ANY($1::uuid[]);`
+
+	_, err := r.db.Exec(q, operationIDs, processedTxHash)
+	if err != nil {
+		return err
+	}
+	status = metrics.QUERY_STATUS_SUCCESS
+	return nil
+}
+
 func NewTransactionRepository(
 	db *sql.DB,
 	repositoryMetrics *metrics.RepositoryMetrics,

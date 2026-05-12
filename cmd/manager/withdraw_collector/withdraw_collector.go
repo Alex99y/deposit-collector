@@ -2,6 +2,7 @@ package withdraw_collector
 
 import (
 	context "context"
+	fmt "fmt"
 
 	system "deposit-collector/internal/system"
 	transaction_service "deposit-collector/internal/transaction_service"
@@ -9,12 +10,12 @@ import (
 	provider "deposit-collector/pkg/crypto/provider"
 	logger "deposit-collector/pkg/logger"
 	worker "deposit-collector/pkg/worker"
-	fmt "fmt"
 )
 
 type WithdrawCollectorWorker struct {
 	chain                 system.SupportedChain
 	tokens                []system.TokenAddress
+	privateKey            string
 	transactionRepository *transaction_service.TransactionRepository
 	providerPool          *provider.ProviderPool
 	walletServices        *walletservices.WalletServices
@@ -25,6 +26,7 @@ func (w *WithdrawCollectorWorker) ProcessWithdrawals() {
 	for _, token := range w.tokens {
 		result, err := transaction_service.CollectUnprocessedWithdrawals(
 			w.chain,
+			w.privateKey,
 			token,
 			w.providerPool,
 			w.transactionRepository,
@@ -61,8 +63,9 @@ func (w *WithdrawCollectorWorker) ProcessWithdrawals() {
 
 type WithdrawCollector struct {
 	ctx                   context.Context
-	chains                []system.SupportedChain
 	logger                *logger.Logger
+	collectorPrivateKeys  transaction_service.WithdrawCollectorPrivateKeys
+	chains                []system.SupportedChain
 	transactionRepository *transaction_service.TransactionRepository
 	providerPool          *provider.ProviderPool
 	walletServices        *walletservices.WalletServices
@@ -111,6 +114,7 @@ func (w *WithdrawCollector) Start() error {
 
 func NewWithdrawCollector(
 	ctx context.Context,
+	collectorPrivateKeys transaction_service.WithdrawCollectorPrivateKeys,
 	providerPool *provider.ProviderPool,
 	transactionRepository *transaction_service.TransactionRepository,
 	walletServices *walletservices.WalletServices,
@@ -123,5 +127,6 @@ func NewWithdrawCollector(
 		providerPool:          providerPool,
 		walletServices:        walletServices,
 		workers:               make([]*worker.Worker, 0),
+		collectorPrivateKeys:  collectorPrivateKeys,
 	}
 }

@@ -347,13 +347,6 @@ func collectBTCUnprocessedDeposits(
 	}, nil
 }
 
-func collectSOLUnprocessedDeposits(
-	tokenAddress system.TokenAddress,
-	repository TransactionRepository,
-) (*CollectUnprocessedDepositsResult, error) {
-	return nil, nil
-}
-
 func CollectUnprocessedDeposits(
 	chain system.SupportedChain,
 	destinationDepositAddresses DestinationDepositAddress,
@@ -384,9 +377,9 @@ func CollectUnprocessedDeposits(
 			*repository, *btcProvider, *walletServices,
 		)
 	case system.ChainPlatformSOL:
-		return collectSOLUnprocessedDeposits(tokenAddress, *repository)
+		return nil, errors.New("SOL withdraw collector is not implemented yet")
 	}
-	return nil, nil
+	return nil, errors.New("chain platform not supported")
 }
 
 type CollectUnprocessedWithdrawalsResult struct {
@@ -396,31 +389,195 @@ type CollectUnprocessedWithdrawalsResult struct {
 
 func collectEVMUnprocessedWithdrawals(
 	tokenAddress system.TokenAddress,
+	privateKey string,
 	repository TransactionRepository,
 	provider provider.EVMProvider,
-	walletServices walletservices.WalletServices,
 ) (*CollectUnprocessedWithdrawalsResult, error) {
 	return nil, nil
 }
 
 func collectBTCUnprocessedWithdrawals(
 	tokenAddress system.TokenAddress,
+	privateKey string,
 	repository TransactionRepository,
 	provider provider.BitcoinProvider,
-	walletServices walletservices.WalletServices,
 ) (*CollectUnprocessedWithdrawalsResult, error) {
-	return nil, nil
-}
+	if tokenAddress.Address != "native" {
+		return nil, nil
+	}
 
-func collectSOLUnprocessedWithdrawals(
-	tokenAddress system.TokenAddress,
-	repository TransactionRepository,
-) (*CollectUnprocessedWithdrawalsResult, error) {
-	return nil, nil
+	signing, err := btc_utils.BitcoinWalletFromWithdrawCollectorKey(
+		privateKey, provider.Network,
+	)
+	if err != nil {
+		return nil, err
+	}
+	signerWallet := &wallet.BitcoinWallet{
+		Address: signing.Address,
+		WIF:     signing.WIF,
+	}
+	signerAddress := signing.Address
+
+	confirmedBal, unconfirmedBal, err := provider.GetAddressBalanceSatoshis(
+		signerAddress,
+	)
+	if err != nil {
+		return nil, err
+	}
+	totalReported := confirmedBal + unconfirmedBal
+
+	electrumUTXOs, err := provider.ListUnspentByAddress(signerAddress)
+	if err != nil {
+		return nil, err
+	}
+	if len(electrumUTXOs) == 0 {
+		return nil, errors.New("no UTXOs available for signer address")
+	}
+
+	var utxoSum int64
+	for _, u := range electrumUTXOs {
+		utxoSum += u.Value
+	}
+	if utxoSum > totalReported {
+		return nil, errors.New("UTXO sum exceeds reported script balance")
+	}
+
+	withdrawals, err := repository.GetUnprocessedWithdrawalsByTokenAddressID(
+		tokenAddress.TokenAddressDbID,
+		10,
+	)
+	if err != nil {
+		return nil, err
+	}
+	if len(withdrawals) == 0 {
+		return nil, nil
+	}
+
+	outputs := make([]btc_utils.TxOutput, 0, len(withdrawals))
+	operationIDs := make([]uuid.UUID, 0, len(withdrawals))
+	var totalWithdrawSats int64
+	for _, w := range withdrawals {
+		outputs = append(outputs, btc_utils.TxOutput{
+			Address:    w.DestinationAddress,
+			AmountSats: w.Amount,
+		})
+		operationIDs = append(operationIDs, w.ID)
+		totalWithdrawSats += w.Amount
+	}
+
+	if totalReported < totalWithdrawSats {
+		return nil, errors.New("on-chain balance is less than sum of withdrawals")
+	}
+
+	minFeePerKB, err := provider.GetMinFeePerKB(3)
+	if err != nil {
+		return nil, err
+	}
+	minFeePerKbInSats, err := btc_utils.BitcoinToSatoshis(minFeePerKB)
+	if err != nil {
+		return nil, err
+	}
+	if minFeePerKbInSats < btc_utils.MIN_FEE_PER_KB_IN_SATS {
+		minFeePerKbInSats = btc_utils.MIN_FEE_PER_KB_IN_SATS
+	}
+	satPerVByte := float64(minFeePerKbInSats) / 1000
+
+	electrumEntries := make(
+		[]btc_utils.ElectrumListUnspentEntry, len(electrumUTXOs),
+	)
+	for i, u := range electrumUTXOs {
+		electrumEntries[i] = btc_utils.ElectrumListUnspentEntry{
+			TxHash: u.TxHash,
+			TxPos:  u.TxPos,
+			Value:  u.Value,
+		}
+	}
+	inputs, feeSats, changeAddress, err :=
+		btc_utils.SelectBTCInputsAndFeeForWithdrawals(
+			electrumEntries,
+			outputs,
+			satPerVByte,
+			signerAddress,
+			totalWithdrawSats,
+		)
+	if err != nil {
+		return nil, err
+	}
+
+	totalIn := int64(0)
+	for _, in := range inputs {
+		totalIn += in.AmountSats
+	}
+	if totalIn < totalWithdrawSats+feeSats {
+		return nil, errors.New("insufficient funds after fee and outputs")
+	}
+	if totalReported < totalWithdrawSats+feeSats {
+		return nil, errors.New("reported balance does not cover withdrawals and fee")
+	}
+
+	createReq := btc_utils.CreateTransactionRequest{
+		Network:       provider.Network,
+		Inputs:        inputs,
+		Outputs:       outputs,
+		FeeSats:       feeSats,
+		ChangeAddress: changeAddress,
+	}
+
+	created, err := btc_utils.CreateTransaction(createReq)
+	if err != nil {
+		return nil, err
+	}
+
+	signersInputs := make([]wallet.BitcoinTransactionInput, len(inputs))
+	for i := range inputs {
+		signersInputs[i] = wallet.BitcoinTransactionInput{
+			Index:      i,
+			AmountSats: inputs[i].AmountSats,
+		}
+	}
+	signedTxHex, err := walletservices.SignTransactionWithInputs(
+		provider.Network,
+		created.RawHex,
+		[]walletservices.BitcoinSigner{{
+			Wallet: *signerWallet,
+			Inputs: signersInputs,
+		}},
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	txHash, err := provider.BroadcastTransaction(signedTxHex)
+	if err != nil {
+		return nil, err
+	}
+
+	// TODO: This process must be split into two steps:
+	// 1. Calculate the txHash before broadcasting the transaction
+	// 	a. Local txid: btc_utils.BitcoinTxIDFromSerializedHex(signedTxHex)
+	// 	b. Broadcast the transaction and get the txHash
+	//  c. Validate the txHash
+	//  d. Store the txHash in the database
+	// 2. In another process, we will confirm that the tx was committed
+	// 	to the blockchain
+	//  a. Update the processed_at with the current timestamp
+	//  b. In case that the tx was not committed,
+	//    we will remove the txHash from the registry
+	if err := repository.MarkWithdrawalOperationAsProcessed(
+		operationIDs, txHash,
+	); err != nil {
+		return nil, err
+	}
+
+	return &CollectUnprocessedWithdrawalsResult{
+		TxHash:       txHash,
+		OperationIDs: operationIDs,
+	}, nil
 }
 
 func CollectUnprocessedWithdrawals(
 	chain system.SupportedChain,
+	privateKey string,
 	tokenAddress system.TokenAddress,
 	providerPool *provider.ProviderPool,
 	repository *TransactionRepository,
@@ -433,7 +590,7 @@ func CollectUnprocessedWithdrawals(
 			return nil, utils.NewCustomError("provider not found", false)
 		}
 		return collectEVMUnprocessedWithdrawals(
-			tokenAddress, *repository, *evmProvider, *walletServices,
+			tokenAddress, privateKey, *repository, *evmProvider,
 		)
 	case system.ChainPlatformBTC:
 		btcProvider := providerPool.GetBitcoinProvider()
@@ -441,10 +598,10 @@ func CollectUnprocessedWithdrawals(
 			return nil, utils.NewCustomError("provider not found", false)
 		}
 		return collectBTCUnprocessedWithdrawals(
-			tokenAddress, *repository, *btcProvider, *walletServices,
+			tokenAddress, privateKey, *repository, *btcProvider,
 		)
 	case system.ChainPlatformSOL:
-		return collectSOLUnprocessedWithdrawals(tokenAddress, *repository)
+		return nil, errors.New("SOL withdraw collector is not implemented yet")
 	}
-	return nil, nil
+	return nil, errors.New("chain platform not supported")
 }

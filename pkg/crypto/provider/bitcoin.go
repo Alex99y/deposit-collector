@@ -205,6 +205,77 @@ func (p *BitcoinProvider) GetMinFeePerKB(block int) (float64, error) {
 	return minRelayFee, nil
 }
 
+type ElectrumUnspent struct {
+	TxHash string `json:"tx_hash"`
+	TxPos  int    `json:"tx_pos"`
+	Value  int64  `json:"value"`
+	Height int64  `json:"height"`
+}
+
+// ListUnspentByAddress returns confirmed UTXOs for the address via Electrum
+// blockchain.scripthash.listunspent.
+func (p *BitcoinProvider) ListUnspentByAddress(address string) ([]ElectrumUnspent, error) {
+	scriptHash, err := btc_utils.ElectrumScriptHashForAddress(address, p.Network)
+	if err != nil {
+		return nil, err
+	}
+
+	resp, err := p.electrumClient.RequestWithContext(p.context, Request{
+		ID:     time.Now().Unix(),
+		Method: "blockchain.scripthash.listunspent",
+		Params: []interface{}{scriptHash},
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	var utxos []ElectrumUnspent
+	if err = json.Unmarshal(resp.Result, &utxos); err != nil {
+		return nil, err
+	}
+
+	return utxos, nil
+}
+
+// GetAddressBalanceSatoshis returns confirmed and unconfirmed balances (satoshis)
+// from blockchain.scripthash.get_balance.
+func (p *BitcoinProvider) GetAddressBalanceSatoshis(address string) (confirmed int64, unconfirmed int64, err error) {
+	scriptHash, err := btc_utils.ElectrumScriptHashForAddress(address, p.Network)
+	if err != nil {
+		return 0, 0, err
+	}
+
+	resp, err := p.electrumClient.RequestWithContext(p.context, Request{
+		ID:     time.Now().Unix(),
+		Method: "blockchain.scripthash.get_balance",
+		Params: []interface{}{scriptHash},
+	})
+	if err != nil {
+		return 0, 0, err
+	}
+
+	var bal struct {
+		Confirmed   int64 `json:"confirmed"`
+		Unconfirmed int64 `json:"unconfirmed"`
+	}
+	if err = json.Unmarshal(resp.Result, &bal); err != nil {
+		// Some servers return [confirmed, unconfirmed].
+		var legacy []int64
+		if err2 := json.Unmarshal(resp.Result, &legacy); err2 != nil {
+			return 0, 0, err
+		}
+		if len(legacy) > 0 {
+			confirmed = legacy[0]
+		}
+		if len(legacy) > 1 {
+			unconfirmed = legacy[1]
+		}
+		return confirmed, unconfirmed, nil
+	}
+
+	return bal.Confirmed, bal.Unconfirmed, nil
+}
+
 func (p *BitcoinProvider) BroadcastTransaction(txHex string) (string, error) {
 	resp, err := p.electrumClient.RequestWithContext(p.context, Request{
 		ID:     time.Now().Unix(),

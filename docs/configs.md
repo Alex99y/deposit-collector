@@ -9,7 +9,7 @@ Use it as a safe reference and **never commit real secrets** to source control.
 # Infrastructure, shared by all modules.
 RABBITMQ_URL=amqp://<user>:<password>@<host>:5672/
 POSTGRESQL_URL=postgres://<user>:<password>@<host>:5432/<database>
-METRICS_PORT=9090
+METRICS_PORT=2112
 BITCOIN_NETWORK=local
 WALLET_SEED=<hex_seed_or_mnemonic>
 
@@ -21,11 +21,13 @@ HOST=0.0.0.0
 ALLOW_MULTI_THREADING=true
 MAX_WORKERS=2
 RPC_FILE_PATH=config/local.json
-EVM_FEE_PAYER_PRIVATE_KEY=<evm_private_key>
 DEPOSIT_COLLECTOR_INTERVAL=10s
 DEPOSIT_COLLECTOR_EVM_DESTINATION_DEPOSIT_ADDRESS=<evm_destination_address>
 DEPOSIT_COLLECTOR_BTC_DESTINATION_DEPOSIT_ADDRESS=<btc_destination_address>
 DEPOSIT_COLLECTOR_SOL_DESTINATION_DEPOSIT_ADDRESS=<sol_destination_address>
+WITHDRAW_COLLECTOR_EVM_PRIVATE_KEY=<evm_private_key>
+WITHDRAW_COLLECTOR_BTC_PRIVATE_KEY=<btc_private_key>
+WITHDRAW_COLLECTOR_SOL_PRIVATE_KEY=<sol_private_key>
 ```
 
 ## Variables
@@ -34,7 +36,7 @@ DEPOSIT_COLLECTOR_SOL_DESTINATION_DEPOSIT_ADDRESS=<sol_destination_address>
 
 - `RABBITMQ_URL`: RabbitMQ connection string.
 - `POSTGRESQL_URL`: PostgreSQL connection string used by the application.
-- `METRICS_PORT`: Port where Prometheus/metrics endpoint is exposed.
+- `METRICS_PORT`: Port where Prometheus/metrics endpoint is exposed. Defaults to `2112` if unset or empty.
 
 ### Network and Wallet
 
@@ -48,14 +50,16 @@ DEPOSIT_COLLECTOR_SOL_DESTINATION_DEPOSIT_ADDRESS=<sol_destination_address>
 
 ### Manager
 
-- `ALLOW_MULTI_THREADING`: Enables concurrent processing in manager workers.
-- `MAX_WORKERS`: Number of worker routines when multithreading is enabled.
-- `RPC_FILE_PATH`: Path to the chain RPC configuration file.
-- `EVM_FEE_PAYER_PRIVATE_KEY`: Private key used to pay EVM gas fees. Highly sensitive.
-- `DEPOSIT_COLLECTOR_INTERVAL`: Polling interval for deposit collection (for example: `10s`).
-- `DEPOSIT_COLLECTOR_EVM_DESTINATION_DEPOSIT_ADDRESS`: Destination EVM address for collected funds.
-- `DEPOSIT_COLLECTOR_BTC_DESTINATION_DEPOSIT_ADDRESS`: Destination BTC address for collected funds.
-- `DEPOSIT_COLLECTOR_SOL_DESTINATION_DEPOSIT_ADDRESS`: Destination SOL address for collected funds.
+- `RPC_FILE_PATH`: Path to the chain RPC configuration file. Required (manager exits if unset).
+- `ALLOW_MULTI_THREADING`: When set to the literal string `true`, enables concurrent processing in manager workers. Defaults to disabled.
+- `MAX_WORKERS`: Number of worker routines when multithreading is enabled. Defaults to `1`; must be greater than zero.
+- `DEPOSIT_COLLECTOR_INTERVAL`: Polling interval for deposit collection (for example: `10s`). Defaults to `10s` if unset or empty.
+- `DEPOSIT_COLLECTOR_EVM_DESTINATION_DEPOSIT_ADDRESS`: Destination EVM address for collected funds. Optional; empty if unset.
+- `DEPOSIT_COLLECTOR_BTC_DESTINATION_DEPOSIT_ADDRESS`: Destination BTC address for collected funds. Optional; empty if unset.
+- `DEPOSIT_COLLECTOR_SOL_DESTINATION_DEPOSIT_ADDRESS`: Destination SOL address for collected funds. Optional; empty if unset.
+- `WITHDRAW_COLLECTOR_EVM_PRIVATE_KEY`: Private key used for EVM withdraw collection. Highly sensitive. Optional; empty if unset.
+- `WITHDRAW_COLLECTOR_BTC_PRIVATE_KEY`: Private key used for Bitcoin withdraw collection. Highly sensitive. Optional; empty if unset.
+- `WITHDRAW_COLLECTOR_SOL_PRIVATE_KEY`: Private key used for Solana withdraw collection. Highly sensitive. Optional; empty if unset.
 
 ## Security Notes
 
