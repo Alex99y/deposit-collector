@@ -399,17 +399,17 @@ VALUES ($1, $2, $3, $4, 'withdraw')
 		return errors.New("no rows affected for insert operation")
 	}
 
-	updateUserBalanceQuery := `
+	updateWithdrawUserBalanceQuery := `
 UPDATE user_balances
 SET
-available_balance = available_balance - $1
-blocked_balance_for_withdrawal = blocked_balance_for_withdrawal + $1
+available_balance = available_balance - $1,
+blocked_balance_for_withdrawal = blocked_balance_for_withdrawal + $1,
 updated_at = CURRENT_TIMESTAMP
 WHERE user_id = $2 AND token_address_id = $3
 `
 
 	result, err = tx.Exec(
-		updateUserBalanceQuery,
+		updateWithdrawUserBalanceQuery,
 		withdrawAmount,
 		userID,
 		tokenAddressID,
