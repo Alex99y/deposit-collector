@@ -108,9 +108,15 @@ func (w *WithdrawCollector) Start() error {
 			return err
 		}
 
-		withdrawCollectorWorker := w.newWorkerForChain(
-			chain, tokens, privateKey,
-		)
+		withdrawCollectorWorker := WithdrawCollectorWorker{
+			chain:                 chain,
+			tokens:                tokens,
+			privateKey:            privateKey,
+			transactionRepository: w.transactionRepository,
+			providerPool:          w.providerPool,
+			walletServices:        w.walletServices,
+			logger:                w.logger,
+		}
 
 		worker := worker.NewWorker(
 			fmt.Sprintf("withdraw-collector-%s-worker", chain.ChainName),
@@ -126,22 +132,6 @@ func (w *WithdrawCollector) Start() error {
 		w.workers = append(w.workers, worker)
 	}
 	return nil
-}
-
-func (w *WithdrawCollector) newWorkerForChain(
-	chain system.SupportedChain,
-	tokens []system.TokenAddress,
-	privateKey string,
-) WithdrawCollectorWorker {
-	return WithdrawCollectorWorker{
-		chain:                 chain,
-		tokens:                tokens,
-		privateKey:            privateKey,
-		transactionRepository: w.transactionRepository,
-		providerPool:          w.providerPool,
-		walletServices:        w.walletServices,
-		logger:                w.logger,
-	}
 }
 
 func (w *WithdrawCollector) Stop() {
