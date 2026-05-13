@@ -483,6 +483,8 @@ func (r *TransactionRepository) MarkWithdrawalOperationAsProcessed(
 	operationIDs []uuid.UUID,
 	processedTxHash string,
 ) error {
+	// TODO: Accept map[uuid.UUID]string (operationId -> txHash) when batching
+	// multiple withdrawals into one chain transaction (see docs/todo.md).
 	const metricOperation = "mark_withdrawal_operation_as_processed"
 	status := metrics.QUERY_STATUS_FAILED
 	stopTimer := observability.StartTimer()
