@@ -2,7 +2,9 @@ package withdraw_collector
 
 import (
 	context "context"
+	errors "errors"
 	fmt "fmt"
+	strings "strings"
 
 	system "deposit-collector/internal/system"
 	transaction_service "deposit-collector/internal/transaction_service"
@@ -65,7 +67,6 @@ type WithdrawCollector struct {
 	ctx                   context.Context
 	logger                *logger.Logger
 	collectorPrivateKeys  transaction_service.WithdrawCollectorPrivateKeys
-	chains                []system.SupportedChain
 	transactionRepository *transaction_service.TransactionRepository
 	providerPool          *provider.ProviderPool
 	walletServices        *walletservices.WalletServices
@@ -74,8 +75,28 @@ type WithdrawCollector struct {
 }
 
 func (w *WithdrawCollector) Start() error {
-	for index := range w.chains {
-		chain := w.chains[index]
+	if w.systemRepository == nil {
+		return errors.New("invalid system repository provided")
+	}
+
+	chains, err := w.systemRepository.GetSupportedChains()
+	if err != nil {
+		return err
+	}
+
+	for index := range chains {
+		chain := chains[index]
+		privateKey := strings.TrimSpace(w.collectorPrivateKeys[chain.ChainPlatform])
+		if privateKey == "" {
+			w.logger.Warn(
+				fmt.Sprintf(
+					"withdraw collector private key not configured for chain platform %s; skipping chain %s",
+					chain.ChainPlatform,
+					chain.ChainName,
+				),
+			)
+			continue
+		}
 
 		tokens, err := w.systemRepository.GetTokenAddresses(
 			system.GetTokenAddressesRequest{
@@ -87,14 +108,9 @@ func (w *WithdrawCollector) Start() error {
 			return err
 		}
 
-		withdrawCollectorWorker := WithdrawCollectorWorker{
-			chain:                 chain,
-			tokens:                tokens,
-			transactionRepository: w.transactionRepository,
-			providerPool:          w.providerPool,
-			walletServices:        w.walletServices,
-			logger:                w.logger,
-		}
+		withdrawCollectorWorker := w.newWorkerForChain(
+			chain, tokens, privateKey,
+		)
 
 		worker := worker.NewWorker(
 			fmt.Sprintf("withdraw-collector-%s-worker", chain.ChainName),
@@ -112,9 +128,35 @@ func (w *WithdrawCollector) Start() error {
 	return nil
 }
 
+func (w *WithdrawCollector) newWorkerForChain(
+	chain system.SupportedChain,
+	tokens []system.TokenAddress,
+	privateKey string,
+) WithdrawCollectorWorker {
+	return WithdrawCollectorWorker{
+		chain:                 chain,
+		tokens:                tokens,
+		privateKey:            privateKey,
+		transactionRepository: w.transactionRepository,
+		providerPool:          w.providerPool,
+		walletServices:        w.walletServices,
+		logger:                w.logger,
+	}
+}
+
+func (w *WithdrawCollector) Stop() {
+	for index := range w.workers {
+		err := w.workers[index].Stop()
+		if err != nil {
+			w.logger.ErrorO(err)
+		}
+	}
+}
+
 func NewWithdrawCollector(
 	ctx context.Context,
 	collectorPrivateKeys transaction_service.WithdrawCollectorPrivateKeys,
+	systemRepository *system.SystemRepository,
 	providerPool *provider.ProviderPool,
 	transactionRepository *transaction_service.TransactionRepository,
 	walletServices *walletservices.WalletServices,
@@ -123,6 +165,7 @@ func NewWithdrawCollector(
 	return &WithdrawCollector{
 		ctx:                   ctx,
 		logger:                logger,
+		systemRepository:      systemRepository,
 		transactionRepository: transactionRepository,
 		providerPool:          providerPool,
 		walletServices:        walletServices,

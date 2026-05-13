@@ -11,6 +11,7 @@ import (
 	config "deposit-collector/cmd/manager/config"
 	deposit_collector "deposit-collector/cmd/manager/deposit_collector"
 	"deposit-collector/cmd/manager/processor"
+	withdraw_collector "deposit-collector/cmd/manager/withdraw_collector"
 	memorycache "deposit-collector/internal/memory_cache"
 	metrics "deposit-collector/internal/metrics"
 	system "deposit-collector/internal/system"
@@ -130,6 +131,20 @@ func main() {
 		utils.FailOnError(logger, err, "Error starting deposit collector")
 	}
 
+	withdrawCollector := withdraw_collector.NewWithdrawCollector(
+		ctx,
+		managerConfig.WithdrawCollectorPrivateKeys,
+		systemRepository,
+		providerPool,
+		transactionRepository,
+		walletServices,
+		logger,
+	)
+
+	if err := withdrawCollector.Start(); err != nil {
+		utils.FailOnError(logger, err, "Error starting withdraw collector")
+	}
+
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 	defer signal.Stop(quit)
@@ -142,6 +157,7 @@ func main() {
 		logger.Info("manager exiting")
 	}
 
+	withdrawCollector.Stop()
 	depositCollector.Stop()
 	for _, worker := range workers {
 		_ = worker.Stop(ctx)
