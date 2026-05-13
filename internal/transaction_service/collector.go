@@ -393,7 +393,147 @@ func collectEVMUnprocessedWithdrawals(
 	repository TransactionRepository,
 	provider provider.EVMProvider,
 ) (*CollectUnprocessedWithdrawalsResult, error) {
-	return nil, nil
+	signerWallet, err := evm_utils.EvmWalletFromWithdrawCollectorKey(privateKey)
+	if err != nil {
+		return nil, err
+	}
+	fromAddress := common.HexToAddress(signerWallet.Address)
+
+	withdrawals, err := repository.GetUnprocessedWithdrawalsByTokenAddressID(
+		tokenAddress.TokenAddressDbID,
+		1,
+	)
+	if err != nil {
+		return nil, err
+	}
+	if len(withdrawals) == 0 {
+		return nil, nil
+	}
+
+	w := withdrawals[0]
+	if !evm_utils.ValidateAddress(w.DestinationAddress) {
+		return nil, errors.New("invalid withdrawal destination address")
+	}
+	toAddress := common.HexToAddress(w.DestinationAddress)
+	amountWei := math.NewInt(w.Amount)
+	if amountWei.Sign() <= 0 {
+		return nil, errors.New("withdrawal amount must be > 0")
+	}
+
+	nonce, err := provider.GetPendingNonce(fromAddress)
+	if err != nil {
+		return nil, err
+	}
+
+	tipCap, err := provider.SuggestGasTipCap()
+	if err != nil {
+		return nil, err
+	}
+
+	baseFeePerGas, err := provider.GetLatestBaseFeePerGas()
+	if err != nil {
+		return nil, err
+	}
+
+	var unsignedTx *evm_utils.UnsignedEIP1559Tx
+
+	switch tokenAddress.Address {
+	case "native":
+		gasLimit, err := provider.EstimateNativeGas(
+			fromAddress, toAddress, amountWei,
+		)
+		if err != nil {
+			return nil, err
+		}
+		unsignedTx, err = evm_utils.BuildNativeTransferEIP1559Tx(
+			provider.ChainID,
+			fromAddress,
+			nonce,
+			toAddress,
+			amountWei,
+			gasLimit,
+			tipCap,
+			baseFeePerGas,
+		)
+		if err != nil {
+			return nil, err
+		}
+	default:
+		if !evm_utils.ValidateAddress(tokenAddress.Address) {
+			return nil, errors.New("invalid token contract address")
+		}
+		tokenContract := common.HexToAddress(tokenAddress.Address)
+		callData, err := evm_utils.EncodeERC20Transfer(toAddress, amountWei)
+		if err != nil {
+			return nil, err
+		}
+		zeroValue := math.NewInt(0)
+		gasLimit, err := provider.EstimateContractGas(
+			fromAddress,
+			tokenContract,
+			zeroValue,
+			callData,
+		)
+		if err != nil {
+			return nil, err
+		}
+		unsignedTx, err = evm_utils.BuildContractCallEIP1559Tx(
+			provider.ChainID,
+			fromAddress,
+			nonce,
+			tokenContract,
+			zeroValue,
+			callData,
+			gasLimit,
+			tipCap,
+			baseFeePerGas,
+		)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	signedTxs, err := walletservices.SignEVMTransactions(
+		[]walletservices.EVMSigner{
+			{
+				Wallet: *signerWallet,
+				Txs:    []*evm_utils.UnsignedEIP1559Tx{unsignedTx},
+			},
+		},
+	)
+	if err != nil {
+		return nil, err
+	}
+	if len(signedTxs) == 0 {
+		return nil, errors.New("no signed transactions generated")
+	}
+
+	txHash, err := provider.BroadcastSignedTransaction(signedTxs[0])
+	if err != nil {
+		return nil, err
+	}
+
+	confirmations := uint64(5)
+	if provider.MinConfirmations > 0 {
+		confirmations = uint64(provider.MinConfirmations)
+	}
+	if err := provider.WaitForConfirmations(txHash, confirmations); err != nil {
+		return nil, err
+	}
+
+	// TODO: Extend MarkWithdrawalOperationAsProcessed to accept map[uuid.UUID]string
+	// (operationId -> txHash) so multiple withdrawals can be confirmed in one batch
+	// when the collector processes more than one operation per chain tx.
+	if err := repository.MarkWithdrawalOperationAsProcessed(
+		[]uuid.UUID{w.ID}, txHash,
+	); err != nil {
+		return nil, err
+	}
+
+	return &CollectUnprocessedWithdrawalsResult{
+		TxHash:       txHash,
+		OperationIDs: []uuid.UUID{w.ID},
+	}, nil
 }
 
 func collectBTCUnprocessedWithdrawals(
@@ -563,6 +703,8 @@ func collectBTCUnprocessedWithdrawals(
 	//  a. Update the processed_at with the current timestamp
 	//  b. In case that the tx was not committed,
 	//    we will remove the txHash from the registry
+	// TODO: Extend MarkWithdrawalOperationAsProcessed to accept map[uuid.UUID]string
+	// (operationId -> txHash) for batch withdrawals and clearer per-operation receipts.
 	if err := repository.MarkWithdrawalOperationAsProcessed(
 		operationIDs, txHash,
 	); err != nil {
