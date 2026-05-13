@@ -1,8 +1,11 @@
 package evm_utils
 
 import (
-	"math/big"
-	"testing"
+	bytes "bytes"
+	big "math/big"
+	testing "testing"
+
+	common "github.com/ethereum/go-ethereum/common"
 )
 
 func TestCalculateNativeSweepValueReservesMaxGasCost(t *testing.T) {
@@ -54,5 +57,23 @@ func TestCalculateEIP1559GasFeeCap(t *testing.T) {
 	}
 	if baseFeePerGas.Int64() != 10 {
 		t.Fatalf("baseFeePerGas was mutated: %d", baseFeePerGas.Int64())
+	}
+}
+
+func TestEncodeERC20TransferLengthAndSelector(t *testing.T) {
+	recipient := common.HexToAddress("0x000000000000000000000000000000000000dEaD")
+	amount := big.NewInt(1_000_000)
+
+	data, err := EncodeERC20Transfer(recipient, amount)
+	if err != nil {
+		t.Fatalf("EncodeERC20Transfer() unexpected error: %v", err)
+	}
+	if len(data) != 4+32+32 {
+		t.Fatalf("calldata len = %d, want 68", len(data))
+	}
+	// transfer(address,uint256) selector
+	want := []byte{0xa9, 0x05, 0x9c, 0xbb}
+	if !bytes.Equal(data[:4], want) {
+		t.Fatalf("selector = %x, want a9059cbb", data[:4])
 	}
 }

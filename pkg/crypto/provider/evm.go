@@ -103,6 +103,24 @@ func (p *EVMProvider) EstimateNativeGas(from common.Address, to common.Address, 
 	)
 }
 
+// EstimateContractGas estimates gas for a contract call (e.g. ERC-20 transfer).
+func (p *EVMProvider) EstimateContractGas(
+	from common.Address,
+	contract common.Address,
+	valueWei *math.Int,
+	data []byte,
+) (uint64, error) {
+	msg := ethereum.CallMsg{
+		From: from,
+		To:   &contract,
+		Data: data,
+	}
+	if valueWei != nil {
+		msg.Value = valueWei
+	}
+	return p.client.EstimateGas(p.context, msg)
+}
+
 func (p *EVMProvider) BroadcastSignedTransaction(signedTx *types.Transaction) (string, error) {
 	if signedTx == nil {
 		return "", errors.New("signedTx is required")
