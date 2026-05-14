@@ -33,6 +33,25 @@ type EvmTxInfo struct {
 	TxReceipt *types.Receipt
 }
 
+func confirmedSuccessfulReceipt(
+	receipt *types.Receipt,
+	latestBlock uint64,
+	confirmations uint64,
+) (bool, error) {
+	if receipt == nil || receipt.BlockNumber == nil {
+		return false, nil
+	}
+	if receipt.Status != types.ReceiptStatusSuccessful {
+		return false, errors.New("evm transaction failed on-chain")
+	}
+
+	receiptBlock := receipt.BlockNumber.Uint64()
+	if latestBlock < receiptBlock {
+		return false, nil
+	}
+	return latestBlock-receiptBlock >= confirmations, nil
+}
+
 func (p *EVMProvider) GetLatestBlockNumber() (uint64, error) {
 	blockNumber, err := p.client.BlockNumber(p.context)
 	if err != nil {
@@ -144,8 +163,15 @@ func (p *EVMProvider) WaitForConfirmations(txHash string, confirmations uint64) 
 
 		txInfo, err := p.GetTxInfo(txHash)
 		if err == nil && txInfo != nil && txInfo.TxReceipt != nil {
-			receiptBlock := txInfo.TxReceipt.BlockNumber.Uint64()
-			if latestBlock >= receiptBlock+confirmations {
+			confirmed, err := confirmedSuccessfulReceipt(
+				txInfo.TxReceipt,
+				latestBlock,
+				confirmations,
+			)
+			if err != nil {
+				return err
+			}
+			if confirmed {
 				return nil
 			}
 		}
