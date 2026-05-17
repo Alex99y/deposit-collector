@@ -492,14 +492,59 @@ func (r *TransactionRepository) MarkWithdrawalOperationAsProcessed(
 		r.observeQueryMetrics(metricOperation, status, stopTimer)
 	}()
 
-	q := `UPDATE operations
-SET
-    processed_at = NOW(),
-    processed_tx_hash = $2
-WHERE id = ANY($1::uuid[]);`
-
-	_, err := r.db.Exec(q, operationIDs, processedTxHash)
+	tx, err := r.db.Begin()
 	if err != nil {
+		return err
+	}
+	defer func() {
+		_ = tx.Rollback()
+	}()
+
+	q := `
+WITH marked_operations AS (
+    UPDATE operations
+    SET
+        processed_at = NOW(),
+        processed_tx_hash = $2
+    WHERE id = ANY($1::uuid[])
+        AND type = 'withdraw'
+        AND processed_at IS NULL
+    RETURNING user_id, token_address_id, amount
+),
+balance_updates AS (
+    SELECT user_id, token_address_id, SUM(amount)::BIGINT AS amount
+    FROM marked_operations
+    GROUP BY user_id, token_address_id
+),
+updated_balances AS (
+    UPDATE user_balances AS ub
+    SET
+        blocked_balance_for_withdrawal = ub.blocked_balance_for_withdrawal - bu.amount,
+        updated_at = CURRENT_TIMESTAMP
+    FROM balance_updates AS bu
+    WHERE ub.user_id = bu.user_id
+        AND ub.token_address_id = bu.token_address_id
+        AND ub.blocked_balance_for_withdrawal >= bu.amount
+    RETURNING 1
+)
+SELECT
+    (SELECT COUNT(*) FROM balance_updates),
+    (SELECT COUNT(*) FROM updated_balances);`
+
+	var balanceUpdatesCount int
+	var updatedBalancesCount int
+	err = tx.QueryRow(q, operationIDs, processedTxHash).Scan(
+		&balanceUpdatesCount,
+		&updatedBalancesCount,
+	)
+	if err != nil {
+		return err
+	}
+	if balanceUpdatesCount != updatedBalancesCount {
+		return errors.New("failed to release blocked withdrawal balance")
+	}
+
+	if err := tx.Commit(); err != nil {
 		return err
 	}
 	status = metrics.QUERY_STATUS_SUCCESS
