@@ -2,6 +2,7 @@ package transaction_service
 
 import (
 	errors "errors"
+	math "math/big"
 
 	memorycache "deposit-collector/internal/memory_cache"
 	queue "deposit-collector/internal/queue"
@@ -10,11 +11,55 @@ import (
 	evm_utils "deposit-collector/pkg/crypto/evm"
 	provider "deposit-collector/pkg/crypto/provider"
 	utils "deposit-collector/pkg/utils"
+
+	types "github.com/ethereum/go-ethereum/core/types"
 )
 
 type ProcessedDepositOperation struct {
 	TokenAddress string
 	Amount       int64
+}
+
+func transactionNotConfirmedError() *utils.CustomError {
+	return utils.NewCustomError("transaction not confirmed", true)
+}
+
+func validateEVMDepositReceipt(
+	receipt *types.Receipt,
+	latestBlockNumber uint64,
+	minConfirmations int,
+) error {
+	if receipt == nil || receipt.BlockNumber == nil {
+		return transactionNotConfirmedError()
+	}
+	if receipt.Status != types.ReceiptStatusSuccessful {
+		return utils.NewCustomError("evm transaction failed on-chain", false)
+	}
+
+	receiptBlockNumber := receipt.BlockNumber.Uint64()
+	if latestBlockNumber < receiptBlockNumber {
+		return transactionNotConfirmedError()
+	}
+
+	confirmations := uint64(0)
+	if minConfirmations > 0 {
+		confirmations = uint64(minConfirmations)
+	}
+	if latestBlockNumber-receiptBlockNumber < confirmations {
+		return transactionNotConfirmedError()
+	}
+
+	return nil
+}
+
+func erc20TransferAmountToInt64(value *math.Int) (int64, error) {
+	if value == nil || !value.IsInt64() {
+		return 0, utils.NewCustomError(
+			"erc20 transfer amount exceeds supported range",
+			false,
+		)
+	}
+	return value.Int64(), nil
 }
 
 func processEVMDepositOperation(
@@ -32,9 +77,12 @@ func processEVMDepositOperation(
 		return nil, err
 	}
 
-	if txInfo.TxReceipt.BlockNumber.Int64()+int64(provider.MinConfirmations) >
-		int64(latestBlockNumber) {
-		return nil, utils.NewCustomError("transaction not confirmed", false)
+	if err := validateEVMDepositReceipt(
+		txInfo.TxReceipt,
+		latestBlockNumber,
+		provider.MinConfirmations,
+	); err != nil {
+		return nil, err
 	}
 
 	var tokenAddress string
@@ -56,7 +104,10 @@ func processEVMDepositOperation(
 			return nil, utils.NewCustomError("no ERC20 transfer found", false)
 		}
 		tokenAddress = transfers[0].Token.Hex()
-		amount = transfers[0].Value.Int64()
+		amount, err = erc20TransferAmountToInt64(transfers[0].Value)
+		if err != nil {
+			return nil, err
+		}
 		txTargetAddress = transfers[0].To.Hex()
 
 		tokenAddressInfo := chainsCache.GetTokenByChainNameAndTokenAddress(
@@ -93,7 +144,7 @@ func processBTCDepositOperation(
 	confirmations := txInfo.Confirmations
 
 	if confirmations <= provider.MinConfirmations {
-		return nil, utils.NewCustomError("transaction not confirmed", false)
+		return nil, transactionNotConfirmedError()
 	}
 
 	amount := int64(0)
