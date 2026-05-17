@@ -9,11 +9,20 @@ import (
 	observability "deposit-collector/pkg/observability"
 
 	uuid "github.com/google/uuid"
+	pq "github.com/lib/pq"
 )
 
 type TransactionRepository struct {
 	db                *sql.DB
 	repositoryMetrics *metrics.RepositoryMetrics
+}
+
+func uuidArray(operationIDs []uuid.UUID) any {
+	values := make([]string, 0, len(operationIDs))
+	for _, operationID := range operationIDs {
+		values = append(values, operationID.String())
+	}
+	return pq.Array(values)
 }
 
 type StoredOperation struct {
@@ -327,7 +336,7 @@ SET
     processed_tx_hash = $2
 WHERE id = ANY($1::uuid[]);`
 
-	_, err := r.db.Exec(q, operationIDs, processedTxHash)
+	_, err := r.db.Exec(q, uuidArray(operationIDs), processedTxHash)
 	if err != nil {
 		return err
 	}
@@ -533,7 +542,7 @@ SELECT
 
 	var balanceUpdatesCount int
 	var updatedBalancesCount int
-	err = tx.QueryRow(q, operationIDs, processedTxHash).Scan(
+	err = tx.QueryRow(q, uuidArray(operationIDs), processedTxHash).Scan(
 		&balanceUpdatesCount,
 		&updatedBalancesCount,
 	)
