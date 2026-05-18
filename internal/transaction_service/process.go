@@ -70,10 +70,11 @@ func processEVMDepositTxInfo(
 	if len(txInfo.Input) == 0 {
 		// Native transfer
 		tokenAddress = "native"
-		amount, err = utils.StringToInt64(txInfo.Amount)
+		parsedAmount, err := utils.StringToInt64(txInfo.Amount)
 		if err != nil {
 			return nil, err
 		}
+		amount = parsedAmount
 		txTargetAddress = txInfo.To
 	} else {
 		// ERC20 transfer
