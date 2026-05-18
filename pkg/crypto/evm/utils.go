@@ -9,10 +9,11 @@ import (
 	strings "strings"
 
 	wallet "deposit-collector/pkg/crypto/wallet"
+	utils "deposit-collector/pkg/utils"
 
-	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/ethereum/go-ethereum/crypto"
+	common "github.com/ethereum/go-ethereum/common"
+	types "github.com/ethereum/go-ethereum/core/types"
+	crypto "github.com/ethereum/go-ethereum/crypto"
 )
 
 var transferEventSigHash = crypto.Keccak256Hash(
@@ -28,6 +29,34 @@ type ERC20Transfer struct {
 
 func ValidateAddress(address string) bool {
 	return common.IsHexAddress(address)
+}
+
+func ValidateConfirmedEVMDepositReceipt(
+	receipt *types.Receipt,
+	latestBlockNumber uint64,
+	minConfirmations int,
+) error {
+	if receipt == nil || receipt.BlockNumber == nil {
+		return utils.NewCustomError("transaction not confirmed", false)
+	}
+	if receipt.Status != types.ReceiptStatusSuccessful {
+		return utils.NewCustomError("transaction failed on-chain", false)
+	}
+
+	receiptBlock := receipt.BlockNumber.Uint64()
+	if latestBlockNumber < receiptBlock {
+		return utils.NewCustomError("transaction not confirmed", false)
+	}
+
+	confirmations := uint64(0)
+	if minConfirmations > 0 {
+		confirmations = uint64(minConfirmations)
+	}
+	if latestBlockNumber-receiptBlock < confirmations {
+		return utils.NewCustomError("transaction not confirmed", false)
+	}
+
+	return nil
 }
 
 func FindERC20Transfers(receipt *types.Receipt) []ERC20Transfer {

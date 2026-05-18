@@ -492,6 +492,8 @@ func (r *TransactionRepository) MarkWithdrawalOperationAsProcessed(
 		r.observeQueryMetrics(metricOperation, status, stopTimer)
 	}()
 
+	// @TODO: We should fist block the withdraw balance before marking the operation as processed.
+	// This is to prevent duplicate withdrawals. Also, there should be another process to confirm the withdrawal.
 	q := `UPDATE operations
 SET
     processed_at = NOW(),

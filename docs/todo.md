@@ -5,6 +5,7 @@
 - Test, test, and more tests (yes, I know) [WIP]
 - Transfer funds between users
 - Add compliance logic to `Manager` so we do not accept/send funds from/to blacklisted addresses
+- Support uint256 numbers (Current implementation only supports uint64 numbers)
 - Ability to freeze funds or block accounts (yes, I'm sorry)
 - Solana `Manager` implementation (`Processor` and `Collector` services)
 - EVM `Manager` implementation (`Collector` service)

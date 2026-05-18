@@ -10,8 +10,6 @@ import (
 	evm_utils "deposit-collector/pkg/crypto/evm"
 	provider "deposit-collector/pkg/crypto/provider"
 	utils "deposit-collector/pkg/utils"
-
-	types "github.com/ethereum/go-ethereum/core/types"
 )
 
 type ProcessedDepositOperation struct {
@@ -34,7 +32,7 @@ func processEVMDepositOperation(
 		return nil, err
 	}
 
-	if err := validateConfirmedEVMDepositReceipt(
+	if err := evm_utils.ValidateConfirmedEVMDepositReceipt(
 		txInfo.TxReceipt,
 		latestBlockNumber,
 		provider.MinConfirmations,
@@ -86,34 +84,6 @@ func processEVMDepositOperation(
 		TokenAddress: tokenAddress,
 		Amount:       amount,
 	}, nil
-}
-
-func validateConfirmedEVMDepositReceipt(
-	receipt *types.Receipt,
-	latestBlockNumber uint64,
-	minConfirmations int,
-) error {
-	if receipt == nil || receipt.BlockNumber == nil {
-		return utils.NewCustomError("transaction not confirmed", false)
-	}
-	if receipt.Status != types.ReceiptStatusSuccessful {
-		return utils.NewCustomError("transaction failed on-chain", false)
-	}
-
-	receiptBlock := receipt.BlockNumber.Uint64()
-	if latestBlockNumber < receiptBlock {
-		return utils.NewCustomError("transaction not confirmed", false)
-	}
-
-	confirmations := uint64(0)
-	if minConfirmations > 0 {
-		confirmations = uint64(minConfirmations)
-	}
-	if latestBlockNumber-receiptBlock < confirmations {
-		return utils.NewCustomError("transaction not confirmed", false)
-	}
-
-	return nil
 }
 
 func processBTCDepositOperation(
@@ -198,10 +168,4 @@ func ProcessDepositOperation(
 		return processSOLDepositOperation(operation)
 	}
 	return nil, nil
-}
-
-func ProcessWithdrawOperation(
-	operation *queue.WithdrawOperationEvent,
-) error {
-	return nil
 }
