@@ -1,6 +1,7 @@
 # TODO
 
 - Add metrics and alerts to each module [WIP]
+- Check if OperationQueue is thread safe
 - Test, test, and more tests (yes, I know) [WIP]
 - Transfer funds between users
 - Add compliance logic to `Manager` so we do not accept/send funds from/to blacklisted addresses

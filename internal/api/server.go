@@ -13,7 +13,6 @@ import (
 	logger "deposit-collector/pkg/logger"
 
 	fiber "github.com/gofiber/fiber/v3"
-	favicon "github.com/gofiber/fiber/v3/middleware/favicon"
 	limiter "github.com/gofiber/fiber/v3/middleware/limiter"
 	requestid "github.com/gofiber/fiber/v3/middleware/requestid"
 	uuid "github.com/google/uuid"
@@ -48,7 +47,6 @@ func NewServer(dependencies ServerDependencies) *Server {
 			return uuid.New().String()
 		},
 	}))
-	app.Use(favicon.New())
 
 	// TODO: Configure limiter
 	app.Use(limiter.New(limiter.Config{

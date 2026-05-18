@@ -3,7 +3,7 @@ package queue
 import (
 	context "context"
 	json "encoding/json"
-	"fmt"
+	fmt "fmt"
 
 	logger "deposit-collector/pkg/logger"
 	rabbitmq "deposit-collector/pkg/rabbitmq"

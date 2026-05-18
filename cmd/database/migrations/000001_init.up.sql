@@ -128,5 +128,5 @@ CREATE TABLE operations (
 
 CREATE UNIQUE INDEX idx_operations_user_created ON operations (user_id, created_at DESC);
 CREATE INDEX idx_deposit_operations_unprocessed ON operations (type,token_address_id, amount DESC)
-    WHERE type = 'deposit' AND processed_at IS NULL;
+    WHERE processed_at IS NULL;
 CREATE UNIQUE INDEX idx_operations_tx_hash ON operations (tx_hash);

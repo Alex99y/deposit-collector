@@ -2,7 +2,7 @@ package rabbitmq
 
 import (
 	context "context"
-	"fmt"
+	fmt "fmt"
 	time "time"
 
 	logger "deposit-collector/pkg/logger"

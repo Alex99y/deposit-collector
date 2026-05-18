@@ -11,6 +11,12 @@ INSERT INTO supported_chains (
     'ethereum', 'EVM', 1
 );
 
+INSERT INTO supported_chains (
+    chain_name, chain_platform, evm_chain_id
+) VALUES (
+    'solana', 'SOL', NULL
+);
+
 -- Insert native token addresses
 INSERT INTO token_addresses (
     unit_name, unit_symbol, address, chain_id, decimals
