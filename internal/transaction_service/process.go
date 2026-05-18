@@ -10,6 +10,8 @@ import (
 	evm_utils "deposit-collector/pkg/crypto/evm"
 	provider "deposit-collector/pkg/crypto/provider"
 	utils "deposit-collector/pkg/utils"
+
+	types "github.com/ethereum/go-ethereum/core/types"
 )
 
 type ProcessedDepositOperation struct {
@@ -32,8 +34,32 @@ func processEVMDepositOperation(
 		return nil, err
 	}
 
-	if txInfo.TxReceipt.BlockNumber.Int64()+int64(provider.MinConfirmations) >
-		int64(latestBlockNumber) {
+	return processEVMDepositTxInfo(
+		txInfo,
+		latestBlockNumber,
+		provider.MinConfirmations,
+		operation,
+		chainsCache.GetTokenByChainNameAndTokenAddress,
+	)
+}
+
+func processEVMDepositTxInfo(
+	txInfo *provider.EvmTxInfo,
+	latestBlockNumber uint64,
+	minConfirmations int,
+	operation *queue.DepositOperationEvent,
+	lookupToken func(chainName string, tokenAddress string) *system.TokenAddress,
+) (*ProcessedDepositOperation, error) {
+	if txInfo.TxReceipt == nil || txInfo.TxReceipt.BlockNumber == nil {
+		return nil, utils.NewCustomError("transaction not confirmed", false)
+	}
+	if txInfo.TxReceipt.Status != types.ReceiptStatusSuccessful {
+		return nil, utils.NewCustomError("transaction failed on-chain", false)
+	}
+
+	receiptBlock := txInfo.TxReceipt.BlockNumber.Uint64()
+	if latestBlockNumber < receiptBlock ||
+		latestBlockNumber-receiptBlock < uint64(minConfirmations) {
 		return nil, utils.NewCustomError("transaction not confirmed", false)
 	}
 
@@ -56,10 +82,13 @@ func processEVMDepositOperation(
 			return nil, utils.NewCustomError("no ERC20 transfer found", false)
 		}
 		tokenAddress = transfers[0].Token.Hex()
+		if !transfers[0].Value.IsInt64() {
+			return nil, utils.NewCustomError("ERC20 transfer amount exceeds int64", false)
+		}
 		amount = transfers[0].Value.Int64()
 		txTargetAddress = transfers[0].To.Hex()
 
-		tokenAddressInfo := chainsCache.GetTokenByChainNameAndTokenAddress(
+		tokenAddressInfo := lookupToken(
 			operation.TargetChainName,
 			tokenAddress,
 		)
