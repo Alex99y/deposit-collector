@@ -76,6 +76,7 @@ func (q *Queue) Publish(
 	message []byte,
 	mandatory bool,
 	immediate bool,
+	persistent bool,
 ) error {
 	return q.channel.PublishWithContext(
 		ctx,
@@ -83,11 +84,21 @@ func (q *Queue) Publish(
 		q.queue.Name,
 		mandatory,
 		immediate,
-		amqp.Publishing{
-			ContentType: "application/json",
-			Body:        message,
-		},
+		newJSONPublishing(message, persistent),
 	)
+}
+
+func newJSONPublishing(message []byte, persistent bool) amqp.Publishing {
+	deliveryMode := amqp.Transient
+	if persistent {
+		deliveryMode = amqp.Persistent
+	}
+
+	return amqp.Publishing{
+		ContentType:  "application/json",
+		DeliveryMode: deliveryMode,
+		Body:         message,
+	}
 }
 
 type MessageMetadata struct {

@@ -93,6 +93,7 @@ func (p *Publisher) run() {
 				req.body,
 				req.mandatory,
 				req.immediate,
+				req.persistent,
 			)
 
 			if err != nil && isConnOrChannelClosed(err) {
@@ -113,6 +114,7 @@ func (p *Publisher) run() {
 					req.body,
 					req.mandatory,
 					req.immediate,
+					req.persistent,
 				)
 			}
 
