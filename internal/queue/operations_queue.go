@@ -28,12 +28,13 @@ func (q *OperationQueue) PublishOperationEvent(
 	event OperationEvent,
 	mandatory bool,
 	immediate bool,
+	persistent bool,
 ) error {
 	message, err := json.Marshal(event)
 	if err != nil {
 		return err
 	}
-	return q.queue.Publish(ctx, message, mandatory, immediate)
+	return q.queue.Publish(ctx, message, mandatory, immediate, persistent)
 }
 
 type ConsumeCallback func(*OperationConsumerArgs)

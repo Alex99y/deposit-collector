@@ -10,6 +10,8 @@ import (
 	evm_utils "deposit-collector/pkg/crypto/evm"
 	provider "deposit-collector/pkg/crypto/provider"
 	utils "deposit-collector/pkg/utils"
+
+	types "github.com/ethereum/go-ethereum/core/types"
 )
 
 type ProcessedDepositOperation struct {
@@ -32,9 +34,12 @@ func processEVMDepositOperation(
 		return nil, err
 	}
 
-	if txInfo.TxReceipt.BlockNumber.Int64()+int64(provider.MinConfirmations) >
-		int64(latestBlockNumber) {
-		return nil, utils.NewCustomError("transaction not confirmed", false)
+	if err := validateConfirmedEVMDepositReceipt(
+		txInfo.TxReceipt,
+		latestBlockNumber,
+		provider.MinConfirmations,
+	); err != nil {
+		return nil, err
 	}
 
 	var tokenAddress string
@@ -56,6 +61,9 @@ func processEVMDepositOperation(
 			return nil, utils.NewCustomError("no ERC20 transfer found", false)
 		}
 		tokenAddress = transfers[0].Token.Hex()
+		if !transfers[0].Value.IsInt64() {
+			return nil, utils.NewCustomError("ERC20 transfer amount exceeds supported range", false)
+		}
 		amount = transfers[0].Value.Int64()
 		txTargetAddress = transfers[0].To.Hex()
 
@@ -78,6 +86,34 @@ func processEVMDepositOperation(
 		TokenAddress: tokenAddress,
 		Amount:       amount,
 	}, nil
+}
+
+func validateConfirmedEVMDepositReceipt(
+	receipt *types.Receipt,
+	latestBlockNumber uint64,
+	minConfirmations int,
+) error {
+	if receipt == nil || receipt.BlockNumber == nil {
+		return utils.NewCustomError("transaction not confirmed", false)
+	}
+	if receipt.Status != types.ReceiptStatusSuccessful {
+		return utils.NewCustomError("transaction failed on-chain", false)
+	}
+
+	receiptBlock := receipt.BlockNumber.Uint64()
+	if latestBlockNumber < receiptBlock {
+		return utils.NewCustomError("transaction not confirmed", false)
+	}
+
+	confirmations := uint64(0)
+	if minConfirmations > 0 {
+		confirmations = uint64(minConfirmations)
+	}
+	if latestBlockNumber-receiptBlock < confirmations {
+		return utils.NewCustomError("transaction not confirmed", false)
+	}
+
+	return nil
 }
 
 func processBTCDepositOperation(
