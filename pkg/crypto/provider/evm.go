@@ -33,6 +33,13 @@ type EvmTxInfo struct {
 	TxReceipt *types.Receipt
 }
 
+func transactionRecipientHex(tx *types.Transaction) string {
+	if tx == nil || tx.To() == nil {
+		return ""
+	}
+	return tx.To().Hex()
+}
+
 func confirmedSuccessfulReceipt(
 	receipt *types.Receipt,
 	latestBlock uint64,
@@ -80,7 +87,7 @@ func (p *EVMProvider) GetTxInfo(txHash string) (*EvmTxInfo, error) {
 	return &EvmTxInfo{
 		TxHash:    txHash,
 		From:      from.Hex(),
-		To:        txInfo.To().Hex(),
+		To:        transactionRecipientHex(txInfo),
 		Amount:    txInfo.Value().String(),
 		Input:     txInfo.Data(),
 		ChainID:   txInfo.ChainId().String(),

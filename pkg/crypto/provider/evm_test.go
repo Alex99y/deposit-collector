@@ -4,6 +4,7 @@ import (
 	"math/big"
 	"testing"
 
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 )
 
@@ -45,5 +46,35 @@ func TestConfirmedSuccessfulReceiptRequiresConfirmationDepth(t *testing.T) {
 	}
 	if !confirmed {
 		t.Fatal("expected successful receipt at confirmation depth to be confirmed")
+	}
+}
+
+func TestTransactionRecipientHexHandlesContractCreation(t *testing.T) {
+	tx := types.NewContractCreation(
+		1,
+		big.NewInt(1),
+		21_000,
+		big.NewInt(1),
+		[]byte{0x60, 0x00},
+	)
+
+	if got := transactionRecipientHex(tx); got != "" {
+		t.Fatalf("recipient = %q, want empty for contract creation", got)
+	}
+}
+
+func TestTransactionRecipientHexReturnsRecipient(t *testing.T) {
+	recipient := common.HexToAddress("0x000000000000000000000000000000000000dEaD")
+	tx := types.NewTransaction(
+		1,
+		recipient,
+		big.NewInt(1),
+		21_000,
+		big.NewInt(1),
+		nil,
+	)
+
+	if got := transactionRecipientHex(tx); got != recipient.Hex() {
+		t.Fatalf("recipient = %q, want %q", got, recipient.Hex())
 	}
 }
