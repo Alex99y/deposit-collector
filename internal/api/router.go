@@ -61,4 +61,9 @@ func RegisterRoutes(app *fiber.App, dependencies RouterDependencies) {
 		validations.ValidateContentType(validations.ContentTypeJSON),
 		dependencies.UsersHandler.ManualDeposit,
 	)
+	apiV1.Post(
+		"/withdraw",
+		validations.ValidateContentType(validations.ContentTypeJSON),
+		dependencies.UsersHandler.RequestWithdraw,
+	)
 }
