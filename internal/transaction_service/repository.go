@@ -42,10 +42,10 @@ func (r *TransactionRepository) observeQueryMetrics(
 	_ = r.repositoryMetrics.ObserveDBQueryDuration(operation, stopTimer())
 }
 
-func (r *TransactionRepository) GetOperationByTxHash(
+func (r *TransactionRepository) GetDepositOperationByTxHash(
 	txHash string,
 ) (StoredOperation, error) {
-	const metricOperation = "get_operation_by_tx_hash"
+	const metricOperation = "get_deposit_operation_by_tx_hash"
 	status := metrics.QUERY_STATUS_FAILED
 	stopTimer := observability.StartTimer()
 	defer func() {
@@ -54,23 +54,25 @@ func (r *TransactionRepository) GetOperationByTxHash(
 
 	var operation StoredOperation
 	q := `
-SELECT o.amount, o.type, o.created_at, o.tx_hash,
-u.external_id, ua.address, ua.chain,
-ta.unit_name, ta.unit_symbol, ta.address AS token_address,
-ta.decimals AS token_decimals
-FROM operations AS o
-JOIN users AS u ON o.user_id = u.id
-JOIN user_addresses AS ua ON o.deposit_address_id = ua.id
-JOIN token_addresses AS ta ON o.token_address_id = ta.id
-WHERE o.tx_hash = $1
+SELECT user_operations.created_at, users.external_id,
+deposit_operations.amount, deposit_operations.tx_hash,
+user_addresses.address, user_addresses.chain,
+token_addresses.unit_name, token_addresses.unit_symbol,
+token_addresses.address AS token_address,
+token_addresses.decimals AS token_decimals
+FROM deposit_operations
+JOIN users ON deposit_operations.user_id = users.id
+JOIN user_addresses ON deposit_operations.address_id = user_addresses.id
+JOIN user_operations ON deposit_operations.user_operation_id = user_operations.id
+JOIN token_addresses ON deposit_operations.token_address_id = token_addresses.id
+WHERE deposit_operations.tx_hash = $1
 `
 
 	err := r.db.QueryRow(q, txHash).Scan(
-		&operation.Amount,
-		&operation.Type,
 		&operation.CreatedAt,
-		&operation.TxHash,
 		&operation.ExternalUserID,
+		&operation.Amount,
+		&operation.TxHash,
 		&operation.Address,
 		&operation.Chain,
 		&operation.UnitName,
@@ -87,10 +89,10 @@ WHERE o.tx_hash = $1
 	return operation, nil
 }
 
-func (r *TransactionRepository) ExistsOperationByTxHash(
+func (r *TransactionRepository) ExistsDepositOperationByTxHash(
 	txHash string,
 ) (bool, error) {
-	const metricOperation = "exists_operation_by_tx_hash"
+	const metricOperation = "exists_deposit_operation_by_tx_hash"
 	status := metrics.QUERY_STATUS_FAILED
 	stopTimer := observability.StartTimer()
 	defer func() {
@@ -99,7 +101,7 @@ func (r *TransactionRepository) ExistsOperationByTxHash(
 
 	var exists bool
 	q := `
-SELECT EXISTS(SELECT 1 FROM operations WHERE tx_hash = $1)
+SELECT EXISTS(SELECT 1 FROM deposit_operations WHERE tx_hash = $1)
 `
 	err := r.db.QueryRow(q, txHash).Scan(&exists)
 
@@ -140,20 +142,21 @@ func (r *TransactionRepository) EndorseDepositOperation(
 		_ = tx.Rollback()
 	}()
 
-	insertOperationQuery := `
-INSERT INTO operations (
-user_id, deposit_address_id, token_address_id, amount, type, tx_hash
+	insertQuery := `
+WITH inserted_user_operation AS (
+INSERT INTO user_operations (user_id, type, status)
+VALUES ($1, 'deposit', 'pending')
+RETURNING id
 )
-VALUES ($1, $2, $3, $4, $5, $6)
+INSERT INTO deposit_operations (
+user_operation_id, token_address_id, amount, address_id, tx_hash
+)
+SELECT id, $2, $3, $4, $5 FROM inserted_user_operation
 `
+
 	result, err := tx.Exec(
-		insertOperationQuery,
-		userID,
-		addressID,
-		tokenAddressID,
-		amount,
-		"deposit",
-		txHash,
+		insertQuery,
+		userID, tokenAddressID, amount, addressID, txHash,
 	)
 	if err != nil {
 		return err
@@ -210,17 +213,19 @@ func (r *TransactionRepository) GetUnprocessedDepositsByTokenAddressID(
 		r.observeQueryMetrics(metricOperation, status, stopTimer)
 	}()
 
-	q := `
-SELECT o.id, o.amount, o.tx_hash, ua.address, ua.sequence_number, u.account_id
-FROM operations o
-JOIN user_addresses ua ON o.deposit_address_id = ua.id
-JOIN users u ON o.user_id = u.id
-WHERE o.token_address_id = $1 AND o.type = 'deposit' AND o.processed_at IS NULL
-ORDER BY o.amount DESC
-LIMIT $2
+	query := `
+SELECT user_operations.id, deposit_operations.amount, deposit_operations.tx_hash,
+user_addresses.address, user_addresses.sequence_number, users.account_id
+FROM deposit_operations
+JOIN user_operations ON user_operations.id = deposit_operations.user_operation_id
+JOIN user_addresses ON user_addresses.id = deposit_operations.address_id
+JOIN users ON users.id = user_operations.user_id
+WHERE deposit_operations.token_address_id = $1 AND user_operations.status = 'pending'
+ORDER BY deposit_operations.amount DESC
+LIMIT $2;
 `
 
-	rows, err := r.db.Query(q, tokenAddressID, limit)
+	rows, err := r.db.Query(query, tokenAddressID, limit)
 	if err != nil {
 		return nil, err
 	}
@@ -261,27 +266,21 @@ func (r *TransactionRepository) GetGroupedUnprocessedDepositsByTokenAddressID(
 		r.observeQueryMetrics(metricOperation, status, stopTimer)
 	}()
 
-	q := `SELECT
-    u.account_id,
-    ua.address,
-	ua.sequence_number,
-    SUM(o.amount) AS amount,
-    ARRAY_AGG(o.id) AS operation_ids
-FROM operations o
-JOIN users u ON u.id = o.user_id
-JOIN user_addresses ua ON ua.id = o.deposit_address_id
-WHERE
-    o.type = 'deposit'
-    AND o.token_address_id = $1
-    AND o.processed_at IS NULL
-GROUP BY
-    u.account_id,
-    ua.address,
-	ua.sequence_number
+	query := `
+SELECT users.account_id, user_addresses.address, user_addresses.sequence_number,
+SUM(deposit_operations.amount) AS amount,
+ARRAY_AGG(user_operations.id) AS operation_ids
+FROM deposit_operations
+JOIN user_operations ON user_operations.id = deposit_operations.user_operation_id
+JOIN user_addresses ON user_addresses.id = deposit_operations.address_id
+JOIN users ON users.id = user_operations.user_id
+WHERE deposit_operations.token_address_id = $1 AND user_operations.status = 'pending'
+GROUP BY users.account_id, user_addresses.address, user_addresses.sequence_number
 ORDER BY amount DESC
-LIMIT $2;`
+LIMIT $2;
+`
 
-	rows, err := r.db.Query(q, tokenAddressID, limit)
+	rows, err := r.db.Query(query, tokenAddressID, limit)
 	if err != nil {
 		return nil, err
 	}
@@ -310,24 +309,23 @@ LIMIT $2;`
 	return operations, nil
 }
 
-func (r *TransactionRepository) MarkOperationAsProcessed(
-	operationIDs []uuid.UUID,
-	processedTxHash string,
+func (r *TransactionRepository) MarkDepositOperationAsProcessed(
+	depositUserOperationIDs []uuid.UUID,
 ) error {
-	const metricOperation = "mark_operation_as_processed"
+	const metricOperation = "mark_deposit_operation_as_processed"
 	status := metrics.QUERY_STATUS_FAILED
 	stopTimer := observability.StartTimer()
 	defer func() {
 		r.observeQueryMetrics(metricOperation, status, stopTimer)
 	}()
 
-	q := `UPDATE operations
+	q := `UPDATE user_operations
 SET
-    processed_at = NOW(),
-    processed_tx_hash = $2
+    update_at = NOW(),
+    status = 'processed'
 WHERE id = ANY($1::uuid[]);`
 
-	_, err := r.db.Exec(q, operationIDs, processedTxHash)
+	_, err := r.db.Exec(q, depositUserOperationIDs)
 	if err != nil {
 		return err
 	}
@@ -374,19 +372,22 @@ FOR UPDATE
 		return errors.New("insufficient balance for withdrawal")
 	}
 
-	insertOperationQuery := `
-INSERT INTO operations (
-user_id, withdraw_destination_address, token_address_id, amount, type
+	insertQuery := `
+WITH inserted_user_operation AS (
+INSERT INTO user_operations (user_id, type, status)
+VALUES ($1, 'withdraw', 'pending')
+RETURNING id
 )
-VALUES ($1, $2, $3, $4, 'withdraw')
+INSERT INTO withdraw_operations (user_operation_id, token_address_id, amount, destination_address)
+SELECT id, $2, $3, $4 FROM inserted_user_operation
 `
 
 	result, err := tx.Exec(
-		insertOperationQuery,
+		insertQuery,
 		userID,
-		withdrawDestinationAddress,
 		tokenAddressID,
 		withdrawAmount,
+		withdrawDestinationAddress,
 	)
 	if err != nil {
 		return err
@@ -445,10 +446,11 @@ func (r *TransactionRepository) GetUnprocessedWithdrawalsByTokenAddressID(
 	}()
 
 	q := `
-SELECT o.id, o.amount, o.withdraw_destination_address
-FROM operations o
-WHERE o.token_address_id = $1 AND o.type = 'withdraw' AND o.processed_at IS NULL
-ORDER BY o.created_at ASC
+SELECT user_operations.id, withdraw_operations.amount, withdraw_operations.destination_address
+FROM withdraw_operations
+JOIN user_operations ON user_operations.id = withdraw_operations.user_operation_id
+WHERE withdraw_operations.token_address_id = $1 AND user_operations.status = 'pending'
+ORDER BY withdraw_operations.amount ASC
 LIMIT $2
 `
 
@@ -492,16 +494,50 @@ func (r *TransactionRepository) MarkWithdrawalOperationAsProcessed(
 		r.observeQueryMetrics(metricOperation, status, stopTimer)
 	}()
 
+	tx, err := r.db.Begin()
+	if err != nil {
+		return err
+	}
+	defer func() {
+		_ = tx.Rollback()
+	}()
+
 	// @TODO: We should fist block the withdraw balance before marking the operation as processed.
 	// This is to prevent duplicate withdrawals. Also, there should be another process to confirm the withdrawal.
-	q := `UPDATE operations
+	queryUpdateUserOperations := `UPDATE user_operations
 SET
-    processed_at = NOW(),
-    processed_tx_hash = $2
+    update_at = NOW(),
+    status = 'processed'
 WHERE id = ANY($1::uuid[]);`
 
-	_, err := r.db.Exec(q, operationIDs, processedTxHash)
+	_, err = tx.Exec(queryUpdateUserOperations, operationIDs)
 	if err != nil {
+		return err
+	}
+
+	queryUpdateWithdrawOperations := `UPDATE withdraw_operations
+SET
+	tx_hash = $1
+FROM user_operations
+WHERE user_operations.id = ANY($2::uuid[]);`
+
+	_, err = tx.Exec(queryUpdateWithdrawOperations, processedTxHash, operationIDs)
+	if err != nil {
+		return err
+	}
+
+	queryUpdateUserBalances := `UPDATE user_balances
+SET
+	blocked_balance_for_withdrawal = blocked_balance_for_withdrawal - withdraw_operations.amount
+FROM withdraw_operations
+WHERE withdraw_operations.user_operation_id = ANY($1::uuid[]);`
+
+	_, err = tx.Exec(queryUpdateUserBalances, operationIDs)
+	if err != nil {
+		return err
+	}
+
+	if err := tx.Commit(); err != nil {
 		return err
 	}
 	status = metrics.QUERY_STATUS_SUCCESS

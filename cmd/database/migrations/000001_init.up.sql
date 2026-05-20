@@ -1,7 +1,8 @@
 CREATE TYPE chain_platform AS ENUM ('EVM', 'BTC', 'SOL');
 
-CREATE TYPE operation_type AS ENUM ('deposit', 'withdraw');
+CREATE TYPE operation_type AS ENUM ('deposit', 'withdraw', 'transfer');
 
+CREATE TYPE operation_status AS ENUM ('pending', 'processed', 'failed');
 
 -- Supported chains table stores the chains that will be used in the system
 -- Example: Chain name is Ethereum. BIP44 ID is 60. Chain platform is EVM.
@@ -97,36 +98,54 @@ CREATE TABLE user_addresses (
 CREATE UNIQUE INDEX user_addresses_address_uk ON user_addresses (address);
 CREATE UNIQUE INDEX user_addresses_user_chain_uk ON user_addresses (user_id, chain, address);
 
--- Operations table stores the operations of the users in the system
--- Example: User with ID 1234567890 has deposited 100 USDC to address 0x1234567890123456789012345678901234567890 for Ethereum
--- Amount is the amount of the operation
--- Type is the type of the operation
--- Created at is the timestamp of the operation
 
-CREATE TABLE operations (
+CREATE TABLE user_operations (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     type operation_type NOT NULL,
     user_id UUID NOT NULL REFERENCES users(id),
-    -- Address references the user_addresses table because we need to generate the
-    --      private key to sign the transaction
-    deposit_address_id UUID REFERENCES user_addresses(id) NULL,
-    -- withdraw_destination_address is the destination address of the operation
-    -- It is only used for withdraw operations
-    withdraw_destination_address VARCHAR(100) NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    status operation_status NOT NULL DEFAULT 'pending'
+)
+
+CREATE UNIQUE INDEX idx_user_operations_user_created ON user_operations (user_id, created_at DESC);
+CREATE UNIQUE INDEX idx_user_operations_pending_operations ON user_operations (user_id, type, status);
+
+CREATE TABLE deposit_operations (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_operation_id UUID NOT NULL REFERENCES user_operations(id),
     token_address_id UUID NOT NULL REFERENCES token_addresses(id),
     amount BIGINT NOT NULL,
-    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    -- processed_at is the timestamp of the operation when it was processed
-    -- It is used by both deposit and withdraw operations
-    processed_at TIMESTAMPTZ NULL,
-    -- processed_tx_hash is the hash of the transaction that processed the operation
-    processed_tx_hash VARCHAR(100) NULL,
-    -- tx_hash is the hash of the deposit transaction
-    -- For withdraw operations, it will be NULL
-    tx_hash VARCHAR(100) NULL
+
+    -- Uncommon fields
+    address_id UUID REFERENCES user_addresses(id) NULL,
+    tx_hash VARCHAR(100),
 );
 
-CREATE UNIQUE INDEX idx_operations_user_created ON operations (user_id, created_at DESC);
-CREATE INDEX idx_deposit_operations_unprocessed ON operations (type,token_address_id, amount DESC)
-    WHERE processed_at IS NULL;
-CREATE UNIQUE INDEX idx_operations_tx_hash ON operations (tx_hash);
+CREATE UNIQUE INDEX idx_deposit_operations_tx_hash ON deposit_operations (tx_hash);
+CREATE INDEX idx_deposit_operations_user_operation_id_token_address_id
+    ON deposit_operations (user_operation_id, token_address_id);
+
+CREATE TABLE withdraw_operations (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_operation_id UUID NOT NULL REFERENCES user_operations(id),
+    token_address_id UUID NOT NULL REFERENCES token_addresses(id),
+    amount BIGINT NOT NULL,
+
+    -- Uncommon fields
+    tx_hash VARCHAR(100) NULL,
+    destination_address VARCHAR(100) NOT NULL
+);
+
+CREATE INDEX idx_withdraw_operations_user_operation_id_token_address_id
+    ON withdraw_operations (user_operation_id, token_address_id);
+
+CREATE TABLE transfer_operations (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_operation_id UUID NOT NULL REFERENCES user_operations(id),
+    token_address_id UUID NOT NULL REFERENCES token_addresses(id),
+    amount BIGINT NOT NULL,
+
+    -- Uncommon fields
+    destination_user_id UUID NOT NULL REFERENCES users(id),
+);
