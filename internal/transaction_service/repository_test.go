@@ -1,11 +1,35 @@
 package transaction_service
 
 import (
+	"database/sql/driver"
 	"testing"
 
 	sqlmock "github.com/DATA-DOG/go-sqlmock"
 	uuid "github.com/google/uuid"
 )
+
+func TestMarkOperationAsProcessedPassesOperationIDsAsSQLArray(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatalf("sqlmock.New() error: %v", err)
+	}
+	defer db.Close()
+
+	repository := NewTransactionRepository(db, nil)
+	operationIDs := []uuid.UUID{uuid.New()}
+
+	mock.ExpectExec("UPDATE operations").
+		WithArgs(sqlArrayArg{}, "0xtx").
+		WillReturnResult(sqlmock.NewResult(0, 1))
+
+	err = repository.MarkOperationAsProcessed(operationIDs, "0xtx")
+	if err != nil {
+		t.Fatalf("MarkOperationAsProcessed() error: %v", err)
+	}
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Fatalf("unmet sql expectations: %v", err)
+	}
+}
 
 func TestMarkWithdrawalOperationAsProcessedReleasesBlockedBalance(t *testing.T) {
 	db, mock, err := sqlmock.New()
@@ -32,6 +56,13 @@ func TestMarkWithdrawalOperationAsProcessedReleasesBlockedBalance(t *testing.T) 
 	if err := mock.ExpectationsWereMet(); err != nil {
 		t.Fatalf("unmet sql expectations: %v", err)
 	}
+}
+
+type sqlArrayArg struct{}
+
+func (sqlArrayArg) Match(v driver.Value) bool {
+	_, ok := v.(string)
+	return ok
 }
 
 func TestMarkWithdrawalOperationAsProcessedRollsBackWhenBalanceIsNotReleased(t *testing.T) {
