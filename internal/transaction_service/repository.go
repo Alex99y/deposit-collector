@@ -61,9 +61,9 @@ token_addresses.unit_name, token_addresses.unit_symbol,
 token_addresses.address AS token_address,
 token_addresses.decimals AS token_decimals
 FROM deposit_operations
-JOIN users ON deposit_operations.user_id = users.id
 JOIN user_addresses ON deposit_operations.address_id = user_addresses.id
 JOIN user_operations ON deposit_operations.user_operation_id = user_operations.id
+JOIN users ON user_operations.user_id = users.id
 JOIN token_addresses ON deposit_operations.token_address_id = token_addresses.id
 WHERE deposit_operations.tx_hash = $1
 `
@@ -321,7 +321,7 @@ func (r *TransactionRepository) MarkDepositOperationAsProcessed(
 
 	q := `UPDATE user_operations
 SET
-    update_at = NOW(),
+    updated_at = NOW(),
     status = 'processed'
 WHERE id = ANY($1::uuid[]);`
 
@@ -506,7 +506,7 @@ func (r *TransactionRepository) MarkWithdrawalOperationAsProcessed(
 	// This is to prevent duplicate withdrawals. Also, there should be another process to confirm the withdrawal.
 	queryUpdateUserOperations := `UPDATE user_operations
 SET
-    update_at = NOW(),
+    updated_at = NOW(),
     status = 'processed'
 WHERE id = ANY($1::uuid[]);`
 
@@ -516,10 +516,8 @@ WHERE id = ANY($1::uuid[]);`
 	}
 
 	queryUpdateWithdrawOperations := `UPDATE withdraw_operations
-SET
-	tx_hash = $1
-FROM user_operations
-WHERE user_operations.id = ANY($2::uuid[]);`
+SET tx_hash = $1
+WHERE user_operation_id = ANY($2::uuid[]);`
 
 	_, err = tx.Exec(queryUpdateWithdrawOperations, processedTxHash, operationIDs)
 	if err != nil {
@@ -528,9 +526,13 @@ WHERE user_operations.id = ANY($2::uuid[]);`
 
 	queryUpdateUserBalances := `UPDATE user_balances
 SET
-	blocked_balance_for_withdrawal = blocked_balance_for_withdrawal - withdraw_operations.amount
-FROM withdraw_operations
-WHERE withdraw_operations.user_operation_id = ANY($1::uuid[]);`
+	blocked_balance_for_withdrawal = user_balances.blocked_balance_for_withdrawal - wo.amount,
+	updated_at = CURRENT_TIMESTAMP
+FROM withdraw_operations wo
+JOIN user_operations uo ON uo.id = wo.user_operation_id
+WHERE wo.user_operation_id = ANY($1::uuid[])
+	AND user_balances.user_id = uo.user_id
+	AND user_balances.token_address_id = wo.token_address_id;`
 
 	_, err = tx.Exec(queryUpdateUserBalances, operationIDs)
 	if err != nil {
