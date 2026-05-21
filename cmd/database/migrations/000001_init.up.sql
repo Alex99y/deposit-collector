@@ -8,7 +8,7 @@ CREATE TYPE operation_status AS ENUM ('pending', 'processed', 'failed');
 -- Example: Chain name is Ethereum. BIP44 ID is 60. Chain platform is EVM.
 
 CREATE TABLE supported_chains (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    id UUID PRIMARY KEY DEFAULT uuidv7(),
     chain_name VARCHAR(100) NOT NULL,
     chain_platform chain_platform NOT NULL,
     -- EVM chain ID is the ID of the chain in the EVM chain
@@ -29,7 +29,7 @@ CREATE TABLE supported_chains (
 -- Example: m/44'/60'/{account_id}'/0/0 for Ethereum
 
 CREATE TABLE users (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    id UUID PRIMARY KEY DEFAULT uuidv7(),
     -- Account ID is the index of the derivation path
     -- Example: m/44'/60'/{account_id}'/0/0 for Ethereum
     account_id INTEGER UNIQUE NOT NULL,
@@ -49,7 +49,7 @@ CREATE INDEX idx_users_external_id ON users (external_id);
 -- Example: USDC token. Address is 0x1234567890123456789012345678901234567890.
 
 CREATE TABLE token_addresses (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    id UUID PRIMARY KEY DEFAULT uuidv7(),
     unit_name VARCHAR(25) NOT NULL,
     unit_symbol VARCHAR(10) NOT NULL,
     address VARCHAR(100) NOT NULL,
@@ -67,7 +67,7 @@ CREATE INDEX idx_token_addresses_address_chain_id ON token_addresses (address, c
 -- or because the funds were blocked by the system for some reason.
 
 CREATE TABLE user_balances (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    id UUID PRIMARY KEY DEFAULT uuidv7(),
     user_id UUID NOT NULL REFERENCES users(id),
     available_balance BIGINT NOT NULL,
     frozen_balance BIGINT DEFAULT 0 NOT NULL,
@@ -83,7 +83,7 @@ CREATE UNIQUE INDEX user_balances_user_id_token_address_id_uk ON user_balances (
 -- Example: m/44'/60'/{account_id}'/0/{sequence_number} for Ethereum
 
 CREATE TABLE user_addresses (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    id UUID PRIMARY KEY DEFAULT uuidv7(),
     -- Address is the public address of the user
     -- Example: 0x1234567890123456789012345678901234567890 for Ethereum
     address VARCHAR(100) NOT NULL,
@@ -100,19 +100,19 @@ CREATE UNIQUE INDEX user_addresses_user_chain_uk ON user_addresses (user_id, cha
 
 
 CREATE TABLE user_operations (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    id UUID PRIMARY KEY DEFAULT uuidv7(),
     type operation_type NOT NULL,
     user_id UUID NOT NULL REFERENCES users(id),
     created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
     status operation_status NOT NULL DEFAULT 'pending'
-)
+);
 
-CREATE UNIQUE INDEX idx_user_operations_user_created ON user_operations (user_id, created_at DESC);
-CREATE UNIQUE INDEX idx_user_operations_pending_operations ON user_operations (user_id, type, status);
+CREATE INDEX idx_user_operations_user_created_at ON user_operations (user_id, created_at DESC);
+CREATE INDEX idx_user_operations_pending ON user_operations (id) WHERE status = 'pending';
 
 CREATE TABLE deposit_operations (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    id UUID PRIMARY KEY DEFAULT uuidv7(),
     user_operation_id UUID NOT NULL REFERENCES user_operations(id),
     token_address_id UUID NOT NULL REFERENCES token_addresses(id),
     amount BIGINT NOT NULL,
@@ -123,11 +123,12 @@ CREATE TABLE deposit_operations (
 );
 
 CREATE UNIQUE INDEX idx_deposit_operations_tx_hash ON deposit_operations (tx_hash);
+CREATE INDEX idx_deposit_operations_token_address_id ON deposit_operations (token_address_id);
 CREATE INDEX idx_deposit_operations_user_operation_id_token_address_id
     ON deposit_operations (user_operation_id, token_address_id);
 
 CREATE TABLE withdraw_operations (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    id UUID PRIMARY KEY DEFAULT uuidv7(),
     user_operation_id UUID NOT NULL REFERENCES user_operations(id),
     token_address_id UUID NOT NULL REFERENCES token_addresses(id),
     amount BIGINT NOT NULL,
@@ -137,11 +138,12 @@ CREATE TABLE withdraw_operations (
     destination_address VARCHAR(100) NOT NULL
 );
 
+CREATE INDEX idx_withdraw_operations_token_address_id ON withdraw_operations (token_address_id);
 CREATE INDEX idx_withdraw_operations_user_operation_id_token_address_id
     ON withdraw_operations (user_operation_id, token_address_id);
 
 CREATE TABLE transfer_operations (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    id UUID PRIMARY KEY DEFAULT uuidv7(),
     user_operation_id UUID NOT NULL REFERENCES user_operations(id),
     token_address_id UUID NOT NULL REFERENCES token_addresses(id),
     amount BIGINT NOT NULL,

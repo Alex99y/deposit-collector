@@ -20,7 +20,7 @@ Incoming deposits are handled by a module called `Manager`, which validates and 
 
 ## Software Requirements
 - Go (>= 1.25.7)
-- Postgresql (>= 17.8)
+- Postgresql (>= 18.4)
 - Rabbitmq (>= 4.2.4)
 - ElectrumX indexer
 - Envio (Soon)
