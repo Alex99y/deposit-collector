@@ -323,11 +323,18 @@ func (r *TransactionRepository) MarkDepositOperationAsProcessed(
 SET
     updated_at = NOW(),
     status = 'processed'
-WHERE id = ANY($1::uuid[]);`
+WHERE id = ANY($1::uuid[]) AND status = 'pending';`
 
-	_, err := r.db.Exec(q, depositUserOperationIDs)
+	result, err := r.db.Exec(q, depositUserOperationIDs)
 	if err != nil {
 		return err
+	}
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if rowsAffected == 0 {
+		return errors.New("no rows affected for update user operations")
 	}
 	status = metrics.QUERY_STATUS_SUCCESS
 	return nil
@@ -508,20 +515,34 @@ func (r *TransactionRepository) MarkWithdrawalOperationAsProcessed(
 SET
     updated_at = NOW(),
     status = 'processed'
-WHERE id = ANY($1::uuid[]);`
+WHERE id = ANY($1::uuid[]) AND status = 'pending';`
 
-	_, err = tx.Exec(queryUpdateUserOperations, operationIDs)
+	result, err := tx.Exec(queryUpdateUserOperations, operationIDs)
 	if err != nil {
 		return err
+	}
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if rowsAffected == 0 {
+		return errors.New("no rows affected for update user operations")
 	}
 
 	queryUpdateWithdrawOperations := `UPDATE withdraw_operations
 SET tx_hash = $1
 WHERE user_operation_id = ANY($2::uuid[]);`
 
-	_, err = tx.Exec(queryUpdateWithdrawOperations, processedTxHash, operationIDs)
+	result, err = tx.Exec(queryUpdateWithdrawOperations, processedTxHash, operationIDs)
 	if err != nil {
 		return err
+	}
+	rowsAffected, err = result.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if rowsAffected == 0 {
+		return errors.New("no rows affected for update withdraw operations")
 	}
 
 	queryUpdateUserBalances := `UPDATE user_balances
@@ -534,9 +555,16 @@ WHERE wo.user_operation_id = ANY($1::uuid[])
 	AND user_balances.user_id = uo.user_id
 	AND user_balances.token_address_id = wo.token_address_id;`
 
-	_, err = tx.Exec(queryUpdateUserBalances, operationIDs)
+	result, err = tx.Exec(queryUpdateUserBalances, operationIDs)
 	if err != nil {
 		return err
+	}
+	rowsAffected, err = result.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if rowsAffected == 0 {
+		return errors.New("no rows affected for update user balances")
 	}
 
 	if err := tx.Commit(); err != nil {
