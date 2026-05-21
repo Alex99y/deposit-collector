@@ -52,7 +52,7 @@ func (w *WithdrawCollectorWorker) ProcessWithdrawals() {
 					token.Address, result.TxHash, w.chain.ChainName,
 				),
 			)
-			err = w.transactionRepository.MarkOperationAsProcessed(
+			err = w.transactionRepository.MarkWithdrawalOperationAsProcessed(
 				result.OperationIDs,
 				result.TxHash,
 			)

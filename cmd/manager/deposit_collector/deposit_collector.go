@@ -54,9 +54,8 @@ func (w *DepositCollectorWorker) ProcessSetledDeposits() {
 				),
 			)
 
-			err = w.transactionRepository.MarkOperationAsProcessed(
+			err = w.transactionRepository.MarkDepositOperationAsProcessed(
 				result.OperationIDs,
-				result.TxHash,
 			)
 			if err != nil {
 				w.logger.ErrorO(err)
